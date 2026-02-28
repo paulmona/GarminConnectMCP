@@ -297,6 +297,34 @@ def get_body_composition(days: int = 30) -> str:
         return NOT_CONFIGURED_MSG
 
 
+class _AcceptHeaderMiddleware:
+    """Normalize Accept headers before requests reach the MCP transport.
+
+    The MCP streamable-http transport requires both application/json and
+    text/event-stream in the Accept header. Some clients (e.g. claude.ai)
+    send Accept: */* which the SDK doesn't recognise, causing 406 responses.
+    This middleware replaces wildcards with the explicit types the SDK expects.
+    """
+
+    _REQUIRED = b"application/json, text/event-stream"
+
+    def __init__(self, app) -> None:
+        self._app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http":
+            headers = list(scope["headers"])
+            idx = next((i for i, (k, _) in enumerate(headers) if k.lower() == b"accept"), None)
+            if idx is None:
+                headers.append((b"accept", self._REQUIRED))
+            else:
+                existing = headers[idx][1].decode()
+                if "application/json" not in existing or "text/event-stream" not in existing:
+                    headers[idx] = (b"accept", self._REQUIRED)
+            scope = {**scope, "headers": headers}
+        await self._app(scope, receive, send)
+
+
 class _BearerAuthMiddleware:
     """Raw ASGI middleware that enforces Bearer token auth on all requests.
 
@@ -362,11 +390,24 @@ def main():
 
             anyio.run(_run)
         else:
+            import anyio
+            import uvicorn
+
             _logger.warning(
                 "MCP_API_KEY not set — endpoint is unauthenticated. "
                 "Set MCP_API_KEY to require Bearer token auth."
             )
-            mcp.settings.json_response = True
-            mcp.run(transport="streamable-http")
+
+            async def _run_open() -> None:
+                app = _AcceptHeaderMiddleware(mcp.streamable_http_app())
+                config = uvicorn.Config(
+                    app,
+                    host=mcp.settings.host,
+                    port=mcp.settings.port,
+                    log_level=mcp.settings.log_level.lower(),
+                )
+                await uvicorn.Server(config).serve()
+
+            anyio.run(_run_open)
     else:
         mcp.run(transport="stdio")
