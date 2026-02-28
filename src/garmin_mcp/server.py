@@ -167,6 +167,20 @@ def get_weekly_summary(target_date: str | None = None) -> str:
     return _to_json(result)
 
 
+@mcp.tool()
+def get_recovery_snapshot() -> str:
+    """Use this tool first when asked about recovery, readiness, or whether to
+    do a hard session. Returns all key recovery metrics in one call: HRV
+    (last night value + status), sleep score + duration, current body battery
+    level, yesterday's resting HR, and training readiness score."""
+    from .tools.training import get_recovery_snapshot as _get
+
+    result = _get_client().call_with_retry(
+        lambda api: _get(api)
+    )
+    return _to_json(result)
+
+
 def main():
     """Start the MCP server."""
     mode = os.environ.get("MCP_MODE", "stdio")

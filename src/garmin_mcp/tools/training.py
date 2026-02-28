@@ -6,7 +6,7 @@ from typing import Any
 from garminconnect import Garmin
 
 from .activities import get_activities_in_range
-from .health import get_resting_hr_trend, get_sleep_history
+from .health import get_body_battery, get_resting_hr_trend, get_sleep_history
 
 
 def get_training_status(
@@ -139,5 +139,88 @@ def get_weekly_summary(
         if sleep_scores
         else None
     )
+
+    return result
+
+
+def get_recovery_snapshot(
+    api: Garmin,
+) -> dict[str, Any]:
+    """Get a single-call recovery snapshot with all key metrics."""
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    result: dict[str, Any] = {"date": today}
+
+    # HRV (last night)
+    try:
+        hrv_data = api.get_hrv_data(today)
+        if hrv_data and hrv_data.get("hrvSummary"):
+            s = hrv_data["hrvSummary"]
+            result["hrv_last_night"] = s.get("lastNight")
+            result["hrv_last_night_avg"] = s.get("lastNightAvg")
+            result["hrv_status"] = s.get("status")
+            result["hrv_baseline_low"] = s.get("baselineLowUpper")
+            result["hrv_baseline_high"] = s.get("baselineBalancedUpper")
+        else:
+            result["hrv_last_night"] = None
+    except Exception:
+        result["hrv_last_night"] = None
+
+    # Sleep (last night)
+    try:
+        sleep = api.get_sleep_data(today)
+        if sleep:
+            daily = sleep.get("dailySleepDTO", {})
+            scores = daily.get("sleepScores", {})
+            result["sleep_score"] = scores.get("overall", {}).get("value")
+            result["sleep_duration_hours"] = (
+                round(daily.get("sleepTimeSeconds", 0) / 3600, 1)
+                if daily.get("sleepTimeSeconds")
+                else None
+            )
+        else:
+            result["sleep_score"] = None
+    except Exception:
+        result["sleep_score"] = None
+
+    # Body battery (current)
+    try:
+        bb = get_body_battery(api, days=1)
+        if bb:
+            result["body_battery_current"] = bb[0].get("most_recent")
+            result["body_battery_highest"] = bb[0].get("highest")
+            result["body_battery_lowest"] = bb[0].get("lowest")
+        else:
+            result["body_battery_current"] = None
+    except Exception:
+        result["body_battery_current"] = None
+
+    # Resting HR (yesterday, since today's may not be finalized)
+    try:
+        rhr = get_resting_hr_trend(api, days=2)
+        for entry in rhr:
+            if entry.get("date") == yesterday and entry.get("resting_hr"):
+                result["resting_hr_yesterday"] = entry["resting_hr"]
+                break
+        else:
+            result["resting_hr_yesterday"] = None
+    except Exception:
+        result["resting_hr_yesterday"] = None
+
+    # Training readiness
+    try:
+        readiness = api.get_training_readiness(today)
+        if readiness and isinstance(readiness, list) and len(readiness) > 0:
+            r = readiness[0]
+            result["readiness_score"] = r.get("score")
+            result["readiness_level"] = r.get("level")
+            result["recovery_time_hours"] = r.get("recoveryTimeInHours")
+        elif readiness and isinstance(readiness, dict):
+            result["readiness_score"] = readiness.get("score")
+            result["readiness_level"] = readiness.get("level")
+        else:
+            result["readiness_score"] = None
+    except Exception:
+        result["readiness_score"] = None
 
     return result
