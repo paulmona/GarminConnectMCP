@@ -4,28 +4,37 @@ SECURITY:
 - CSRF protection via per-session tokens on all POST forms.
 - Binds to 127.0.0.1 only (localhost).
 - OpenAPI/Swagger docs disabled to reduce attack surface.
-- Credentials are stored in .env (gitignored), never in config.json.
+- Credentials are stored in config/garmin_auth.json (gitignored), never in config.json.
 """
 
 import secrets
 from pathlib import Path
 
-from dotenv import get_key, set_key
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .. import credentials
 from .config_store import load_config, save_config
 
 WEB_DIR = Path(__file__).parent
 TEMPLATES_DIR = WEB_DIR / "templates"
 STATIC_DIR = WEB_DIR / "static"
-ENV_PATH = Path(".env")
 
 app = FastAPI(title="GarminClaudeSync Config", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+@app.middleware("http")
+async def setup_guard(request: Request, call_next):
+    """Redirect to /setup if credentials are not configured."""
+    path = request.url.path
+    if not credentials.exists() and path != "/setup" and not path.startswith("/static"):
+        return RedirectResponse(url="/setup", status_code=302)
+    return await call_next(request)
+
 
 # CSRF token store keyed by session ID
 _csrf_tokens: dict[str, str] = {}
@@ -55,13 +64,11 @@ async def _validate_csrf(request: Request) -> None:
 
 
 def _read_credentials() -> dict[str, str]:
-    """Read Garmin credentials from .env file."""
-    if not ENV_PATH.exists():
+    """Read Garmin credentials from credentials file."""
+    creds = credentials.load()
+    if creds is None:
         return {"email": "", "password": ""}
-    return {
-        "email": get_key(str(ENV_PATH), "GARMIN_EMAIL") or "",
-        "password": get_key(str(ENV_PATH), "GARMIN_PASSWORD") or "",
-    }
+    return creds
 
 
 def _make_response(request: Request, page: str, extra_ctx: dict | None = None):
@@ -82,6 +89,42 @@ def _make_response(request: Request, page: str, extra_ctx: dict | None = None):
         "gcs_session", session_id, httponly=True, samesite="strict",
     )
     return response
+
+
+@app.get("/setup", response_class=HTMLResponse)
+async def setup_page(request: Request):
+    return _make_response(request, "setup")
+
+
+@app.post("/setup")
+async def setup_submit(
+    request: Request,
+    email: str = Form(""),
+    password: str = Form(""),
+):
+    await _validate_csrf(request)
+    if not email or not password:
+        return _make_response(request, "setup", {
+            "flash": "Email and password are required.",
+        })
+
+    from garminconnect import (
+        Garmin,
+        GarminConnectAuthenticationError,
+        GarminConnectConnectionError,
+    )
+
+    try:
+        client = Garmin(email=email, password=password)
+        client.login()
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError):
+        return _make_response(request, "setup", {
+            "flash": "Invalid credentials. Please check your email and password and try again.",
+            "setup_email": email,
+        })
+
+    credentials.save(email, password)
+    return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -109,16 +152,17 @@ async def save_credentials(
     password: str = Form(""),
 ):
     await _validate_csrf(request)
-    if not ENV_PATH.exists():
-        ENV_PATH.touch(mode=0o600)
-    set_key(str(ENV_PATH), "GARMIN_EMAIL", email)
-    if password:
-        set_key(str(ENV_PATH), "GARMIN_PASSWORD", password)
+    existing = _read_credentials()
+    # Keep existing password if not provided
+    if not password:
+        password = existing.get("password", "")
+    if email and password:
+        credentials.save(email, password)
     creds = _read_credentials()
     return _make_response(request, "credentials", {
         "garmin_email": creds["email"],
         "has_password": bool(creds["password"]),
-        "flash": "Credentials saved to .env.",
+        "flash": "Credentials saved.",
     })
 
 

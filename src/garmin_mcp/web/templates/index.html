@@ -23,15 +23,43 @@
   <main class="main">
 
     {% if flash %}
-    <div class="flash">{{ flash }}</div>
+    <div class="flash{% if page == 'setup' %} flash-error{% endif %}">{{ flash }}</div>
+    {% endif %}
+
+    {# ── Setup ── #}
+    {% if page == "setup" %}
+    <h2>Welcome to GarminClaudeSync</h2>
+    <p class="text-muted" style="margin-bottom:1.5rem;">
+      Connect your Garmin account to get started.
+    </p>
+    <form method="post" action="/setup" id="setup-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email"
+               value="{{ setup_email|default('') }}" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               placeholder="" required>
+      </div>
+      <button type="submit" id="setup-btn">Connect to Garmin</button>
+    </form>
+    <script>
+    document.getElementById('setup-form').addEventListener('submit', function() {
+      var btn = document.getElementById('setup-btn');
+      btn.disabled = true;
+      btn.textContent = 'Verifying your credentials\u2026';
+    });
+    </script>
     {% endif %}
 
     {# ── Credentials ── #}
     {% if page == "credentials" %}
     <h2>Garmin Credentials</h2>
     <p class="text-muted" style="margin-bottom:1rem;font-size:0.85rem;">
-      Credentials are saved to the <code>.env</code> file and read by the MCP server at startup.
-      Do not commit <code>.env</code> to version control.
+      Credentials are stored locally in <code>config/garmin_auth.json</code> with restricted file permissions.
     </p>
     <form method="post" action="/credentials">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

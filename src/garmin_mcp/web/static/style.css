@@ -89,6 +89,17 @@ body {
   font-size: 0.9rem;
 }
 
+.flash-error {
+  background: #f8d7da;
+  color: #842029;
+  border-color: #f5c2c7;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Forms */
 .form-group {
   margin-bottom: 1.25rem;
