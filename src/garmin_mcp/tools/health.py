@@ -148,12 +148,17 @@ def get_resting_hr_trend(
     for d in reversed(dates):
         try:
             data = api.get_rhr_day(d)
-            if data and isinstance(data, list) and len(data) > 0:
-                entry = data[0]
-                rhr = entry.get("value")
-                results.append({"date": d, "resting_hr": rhr})
-            else:
-                results.append({"date": d, "resting_hr": None})
+            rhr = None
+            if data and isinstance(data, dict):
+                rhr_list = (
+                    data.get("allMetrics", {})
+                    .get("metricsMap", {})
+                    .get("WELLNESS_RESTING_HEART_RATE", [])
+                )
+                if rhr_list:
+                    raw = rhr_list[0].get("value")
+                    rhr = int(raw) if raw is not None else None
+            results.append({"date": d, "resting_hr": rhr})
         except Exception:
             results.append({"date": d, "resting_hr": None})
 

@@ -16,7 +16,7 @@ class TestGetWeightTrend:
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
         api.get_weigh_ins.return_value = {
-            "dailyWeighIns": [
+            "dailyWeightSummaries": [
                 {"calendarDate": "2025-01-29", "weight": 80000, "bmi": 24.5},
                 {"calendarDate": "2025-01-30", "weight": 79500, "bmi": 24.3},
             ]
@@ -34,7 +34,7 @@ class TestGetWeightTrend:
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
         api.get_weigh_ins.return_value = {
-            "dailyWeighIns": [{"calendarDate": "2025-01-30", "weight": 75000}]
+            "dailyWeightSummaries": [{"calendarDate": "2025-01-30", "weight": 75000}]
         }
 
         result = get_weight_trend(api, days=30)
@@ -47,7 +47,7 @@ class TestGetWeightTrend:
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
         api.get_weigh_ins.return_value = {
-            "dailyWeighIns": [{"calendarDate": "2025-01-30", "weight": 100000}]
+            "dailyWeightSummaries": [{"calendarDate": "2025-01-30", "weight": 100000}]
         }
 
         result = get_weight_trend(api, days=30)
@@ -60,7 +60,7 @@ class TestGetWeightTrend:
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
         api.get_weigh_ins.return_value = {
-            "dailyWeighIns": [
+            "dailyWeightSummaries": [
                 {"calendarDate": "2025-01-28", "weight": 82000},
                 {"calendarDate": "2025-01-29", "weight": 81000},
                 {"calendarDate": "2025-01-30", "weight": 80000},
@@ -92,7 +92,7 @@ class TestGetWeightTrend:
         mock_date.today.return_value = date(2025, 1, 30)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
-        api.get_weigh_ins.return_value = {"dailyWeighIns": []}
+        api.get_weigh_ins.return_value = {"dailyWeightSummaries": []}
 
         result = get_weight_trend(api, days=14)
 

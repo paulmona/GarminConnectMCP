@@ -216,7 +216,13 @@ class TestGetRestingHrTrend:
     def test_returns_rhr_values(self, mock_range):
         mock_range.return_value = ["2025-01-02", "2025-01-01"]
         api = MagicMock()
-        api.get_rhr_day.return_value = [{"value": 58}]
+        api.get_rhr_day.return_value = {
+            "allMetrics": {
+                "metricsMap": {
+                    "WELLNESS_RESTING_HEART_RATE": [{"value": 58.0, "calendarDate": "2025-01-02"}]
+                }
+            }
+        }
 
         result = get_resting_hr_trend(api, days=2)
 
@@ -224,10 +230,12 @@ class TestGetRestingHrTrend:
         assert result[0]["resting_hr"] == 58
 
     @patch("garmin_mcp.tools.health._date_range")
-    def test_handles_empty_rhr_data(self, mock_range):
+    def test_handles_empty_rhr_metrics(self, mock_range):
         mock_range.return_value = ["2025-01-01"]
         api = MagicMock()
-        api.get_rhr_day.return_value = []
+        api.get_rhr_day.return_value = {
+            "allMetrics": {"metricsMap": {"WELLNESS_RESTING_HEART_RATE": []}}
+        }
 
         result = get_resting_hr_trend(api, days=1)
 

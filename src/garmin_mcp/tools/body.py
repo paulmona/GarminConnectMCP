@@ -22,7 +22,7 @@ def get_weight_trend(
 
     entries = []
     if data and isinstance(data, dict):
-        daily_weigh_ins = data.get("dailyWeighIns", [])
+        daily_weigh_ins = data.get("dailyWeightSummaries", [])
         for entry in daily_weigh_ins:
             weight_kg = entry.get("weight")
             if weight_kg is not None:
