@@ -366,6 +366,7 @@ def main():
                 "MCP_API_KEY not set — endpoint is unauthenticated. "
                 "Set MCP_API_KEY to require Bearer token auth."
             )
+            mcp.settings.json_response = True
             mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
