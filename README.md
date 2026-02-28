@@ -121,6 +121,7 @@ Replace `localhost` with your server's IP or hostname if running remotely.
 | `GARMIN_EMAIL` | Yes | — | Garmin Connect email |
 | `GARMIN_PASSWORD` | Yes | — | Garmin Connect password |
 | `MCP_MODE` | No | `stdio` | Set to `sse` for Docker/remote |
+| `MCP_API_KEY` | No | — | Bearer token required on all SSE requests. Strongly recommended when exposing over the internet |
 | `MCP_HOST` | No | `0.0.0.0` | SSE bind address |
 | `MCP_PORT` | No | `8000` | SSE port |
 

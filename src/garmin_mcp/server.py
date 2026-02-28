@@ -1,10 +1,13 @@
 """MCP server exposing Garmin Connect data for Hyrox training analysis."""
 
 import json
+import logging
 import os
 import re
 from datetime import date
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 from mcp.server.fastmcp import FastMCP
 
@@ -294,17 +297,71 @@ def get_body_composition(days: int = 30) -> str:
         return NOT_CONFIGURED_MSG
 
 
+class _BearerAuthMiddleware:
+    """Raw ASGI middleware that enforces Bearer token auth on all requests.
+
+    Uses the raw ASGI interface (not BaseHTTPMiddleware) so SSE streaming
+    is never buffered.
+    """
+
+    def __init__(self, app, api_key: str) -> None:
+        self._app = app
+        self._api_key = api_key
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            auth = headers.get(b"authorization", b"").decode("utf-8", errors="replace")
+            if auth != f"Bearer {self._api_key}":
+                if scope["type"] == "http":
+                    body = b"Unauthorized"
+                    await send({
+                        "type": "http.response.start",
+                        "status": 401,
+                        "headers": [
+                            (b"content-type", b"text/plain"),
+                            (b"content-length", str(len(body)).encode()),
+                        ],
+                    })
+                    await send({"type": "http.response.body", "body": body, "more_body": False})
+                return
+        await self._app(scope, receive, send)
+
+
 def main():
     """Start the MCP server.
 
     Transport is controlled by MCP_MODE:
     - stdio (default): for local Claude Desktop use
     - sse: for Docker / remote use; binds to MCP_HOST:MCP_PORT
+
+    When MCP_MODE=sse, set MCP_API_KEY to require Bearer token auth.
     """
     mode = os.environ.get("MCP_MODE", "stdio")
     if mode == "sse":
         mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")
         mcp.settings.port = int(os.environ.get("MCP_PORT", "8000"))
-        mcp.run(transport="sse")
+        api_key = os.environ.get("MCP_API_KEY", "").strip()
+        if api_key:
+            import anyio
+            import uvicorn
+
+            async def _run() -> None:
+                app = _BearerAuthMiddleware(mcp.sse_app(), api_key)
+                config = uvicorn.Config(
+                    app,
+                    host=mcp.settings.host,
+                    port=mcp.settings.port,
+                    log_level=mcp.settings.log_level.lower(),
+                )
+                await uvicorn.Server(config).serve()
+
+            anyio.run(_run)
+        else:
+            _logger.warning(
+                "MCP_API_KEY not set — SSE endpoint is unauthenticated. "
+                "Set MCP_API_KEY to require Bearer token auth."
+            )
+            mcp.run(transport="sse")
     else:
         mcp.run(transport="stdio")
