@@ -13,6 +13,7 @@ from garminconnect import (
 )
 
 from .config import Settings
+from .credentials import CredentialsNotConfiguredError
 
 T = TypeVar("T")
 
@@ -23,7 +24,7 @@ class GarminClient:
     """Wrapper around garminconnect.Garmin with automatic session persistence."""
 
     def __init__(self, settings: Settings | None = None) -> None:
-        self._settings = settings or Settings.from_env()
+        self._settings = settings or Settings.load()
         self._client: Garmin | None = None
 
     @property
@@ -41,6 +42,8 @@ class GarminClient:
         """Call fn(api) with one automatic re-auth retry on auth failure."""
         try:
             return fn(self.api)
+        except CredentialsNotConfiguredError:
+            raise
         except GarminConnectAuthenticationError:
             logger.warning("Auth error during call, re-authenticating")
             self.invalidate()

@@ -26,14 +26,14 @@ class TestGarminClientInit:
         client = GarminClient(settings=settings)
         assert client._settings is settings
 
-    @patch("garmin_mcp.garmin_client.Settings.from_env")
-    def test_defaults_to_settings_from_env(self, mock_from_env):
-        mock_from_env.return_value = Settings(
+    @patch("garmin_mcp.garmin_client.Settings.load")
+    def test_defaults_to_settings_load(self, mock_load):
+        mock_load.return_value = Settings(
             garmin_email="e", garmin_password="p", session_dir=Path("/tmp")
         )
         client = GarminClient()
-        mock_from_env.assert_called_once()
-        assert client._settings is mock_from_env.return_value
+        mock_load.assert_called_once()
+        assert client._settings is mock_load.return_value
 
 
 class TestApiProperty:

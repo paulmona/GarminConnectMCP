@@ -1,10 +1,11 @@
-"""Configuration loaded from environment variables."""
+"""Configuration loaded from credentials file."""
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+from . import credentials
+from .credentials import CredentialsNotConfiguredError
 
 
 @dataclass(frozen=True)
@@ -14,19 +15,18 @@ class Settings:
     session_dir: Path
 
     @classmethod
-    def from_env(cls) -> "Settings":
-        load_dotenv()
-        email = os.environ.get("GARMIN_EMAIL", "")
-        password = os.environ.get("GARMIN_PASSWORD", "")
+    def load(cls) -> "Settings":
+        creds = credentials.load()
+        if creds is None:
+            raise CredentialsNotConfiguredError(
+                "Garmin credentials not configured. "
+                "Run the web UI to complete setup: uv run garmin-web"
+            )
         session_dir = Path(
             os.environ.get("GARMIN_SESSION_DIR", "config/.session")
         ).resolve()
-        if not email or not password:
-            raise ValueError(
-                "GARMIN_EMAIL and GARMIN_PASSWORD must be set in environment"
-            )
         return cls(
-            garmin_email=email,
-            garmin_password=password,
+            garmin_email=creds["email"],
+            garmin_password=creds["password"],
             session_dir=session_dir,
         )
