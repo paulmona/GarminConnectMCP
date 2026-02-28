@@ -1,247 +1,230 @@
-# Security Review: GarminClaudeSync
+# Security
 
-Reviewed: 2026-02-27
-Reviewer: security (automated agent)
-Scope: Full codebase as of Tasks #1-#8, #12 completion
+Security model and hardening notes for GarminClaudeSync.
 
----
-
-## Executive Summary
-
-GarminClaudeSync is an MCP server that authenticates to Garmin Connect using
-username/password credentials and exposes health and fitness data to Claude
-Desktop. The primary security concerns are **credential handling** (a
-plaintext password stored on disk), **unauthenticated web UI** (a local HTTP
-server that accepts credential-modifying POST requests without authentication
-or CSRF protection), and **unvalidated MCP tool inputs** (parameters passed
-directly to upstream API calls).
-
-This review documents findings, severity ratings, and fixes applied.
+Last reviewed: 2026-02-27
 
 ---
 
-## Findings
+## 1. Credential Storage
 
-### SEC-01: Plaintext credentials in config.json [CRITICAL -- FIXED]
+GarminClaudeSync needs a Garmin Connect email and password. These are stored
+in **two places**, each with different sensitivity:
 
-**File**: `src/garmin_mcp/web/config_store.py`
-**Status**: Fixed in this review
+| Store | Contents | File permissions | In .gitignore |
+|-------|----------|-----------------|---------------|
+| `.env` | `GARMIN_EMAIL`, `GARMIN_PASSWORD` | 0600 (set on create via web UI) | Yes |
+| `config.json` | HR zones, sync schedule, export prefs | 0600 (set by `save_config()`) | Yes |
 
-The original `config_store.py` stored Garmin email and password in plaintext
-in `config.json`. This file is written to the project working directory and
-was at risk of accidental git commit.
+**Credentials never appear in `config.json`.** The config store strips any
+`garmin.*` keys on both load and save (`_FORBIDDEN_KEYS` in
+`config_store.py`). This is a defense-in-depth measure in case application
+code accidentally passes credentials into the config dict.
 
-**Fix applied**:
-- Removed `garmin.email` and `garmin.password` from `DEFAULT_CONFIG`
-- Added `_FORBIDDEN_KEYS` set that strips credential blocks on load and save
-- `save_config()` now sanitizes output before writing
-- `config.json` was already added to `.gitignore` (confirmed)
+The `.env` file is the single source of truth for secrets. The web UI writes
+to `.env` via `python-dotenv` `set_key()`. The MCP server reads from `.env`
+via `Settings.from_env()`.
 
-**Residual risk**: The web UI `POST /credentials` endpoint now writes to
-`.env` via `python-dotenv` `set_key()`. The `.env` file is gitignored, but
-the password is still stored as plaintext on disk. For a single-user local
-tool this is acceptable. For higher security, consider OS keychain storage
-via the `keyring` library.
-
----
-
-### SEC-02: Web UI has no CSRF protection [HIGH -- FIXED]
-
-**File**: `src/garmin_mcp/web/app.py`
-**Status**: Fixed in this review
-
-All POST endpoints (`/credentials`, `/hr-zones`, `/sync`, `/export`)
-accepted form submissions without any CSRF token validation. Since the server
-binds to `127.0.0.1:8585`, a malicious web page opened in the user's browser
-could submit cross-origin POST requests to these endpoints, potentially
-overwriting Garmin credentials in `.env`.
-
-**Fix applied**:
-- Added per-session CSRF token generation and validation
-- All POST handlers now call `_validate_csrf(request)` before processing
-- Session ID stored in `HttpOnly`, `SameSite=Strict` cookie
-- CSRF token embedded as hidden field in all HTML forms
-- Token comparison uses `secrets.compare_digest()` for timing-safe comparison
+**Residual risk**: The password is stored as plaintext in `.env`. This is
+standard for Python projects using `python-dotenv`, but on a shared machine
+the file could be read by other users. For higher security, consider OS
+keychain integration via the `keyring` library in a future release.
 
 ---
 
-### SEC-03: Web UI exposes OpenAPI/Swagger docs [LOW -- FIXED]
+## 2. Session Tokens
 
-**File**: `src/garmin_mcp/web/app.py`
-**Status**: Fixed in this review
+Garmin OAuth tokens (managed by the `garth` library) are cached on disk to
+avoid re-authentication on every server restart.
 
-The FastAPI app exposed default `/docs`, `/redoc`, and `/openapi.json`
-endpoints, which leak endpoint structure and parameter details to any local
-process that can reach port 8585.
+- **Location**: `.session/tokens` (configurable via `GARMIN_SESSION_DIR` env var)
+- **Directory permissions**: `0700` (owner-only rwx), enforced by
+  `os.chmod()` in `garmin_client.py` every time `_authenticate()` runs
+- **TTL**: Garmin tokens typically expire after ~24 hours. The server
+  handles this via `call_with_retry()`, which catches
+  `GarminConnectAuthenticationError`, invalidates the cached client, and
+  re-authenticates once before retrying the failed call
+- **Fallback**: If the cached token store is invalid or corrupted, the
+  client falls back to a fresh login with email/password credentials
+- **Persistence failures**: If `garth.dump()` fails, a warning is logged
+  but the server continues operating. The next restart will trigger a full
+  re-authentication
 
-**Fix applied**: Disabled all OpenAPI endpoints via
-`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`.
-
----
-
-### SEC-04: No MCP input validation [MEDIUM -- FIXED]
-
-**File**: `src/garmin_mcp/server.py`
-**Status**: Fixed in this review
-
-MCP tool parameters were passed directly to Garmin API calls without
-validation:
-
-- `days` parameters had no upper bound. `get_hrv_trend(days=10000)` would
-  fire 10,000 sequential HTTP requests, potentially triggering Garmin rate
-  limits or account lockout.
-- `activity_id` accepted arbitrary strings. While the garminconnect library
-  likely URL-encodes them, defense-in-depth requires validating that
-  activity IDs match the expected numeric format.
-- `start_date` and `end_date` accepted arbitrary strings that could cause
-  unexpected behavior in the Garmin API client.
-
-**Fix applied**:
-- `_clamp_days()`: All `days` parameters capped to [1, 90]
-- `_validate_activity_id()`: Requires numeric string matching `^\d{1,20}$`
-- `_validate_date()`: Requires YYYY-MM-DD format and valid calendar date
-- `limit` parameter on `get_recent_activities` capped to [1, 50]
+The `.session/` directory is in `.gitignore` and must never be committed.
 
 ---
 
-### SEC-05: Session token directory has default permissions [MEDIUM -- FIXED]
+## 3. Web UI Security
 
-**File**: `src/garmin_mcp/garmin_client.py`
-**Status**: Fixed in this review
+The configuration web UI (`web/app.py`) is a FastAPI application that
+provides a browser-based interface for editing non-secret settings (HR
+zones, sync schedule, data export) and Garmin credentials.
 
-The `.session/` directory (containing Garmin OAuth tokens) was created with
-default filesystem permissions, meaning other users on a shared system could
-read the tokens.
+### Binding
 
-**Fix applied**: `os.chmod(token_dir, stat.S_IRWXU)` restricts the session
-directory to owner-only access (mode 0700).
+The server binds to `127.0.0.1:8585` (localhost only). It is not reachable
+from other machines on the network. This is enforced in `start()` and should
+never be changed to `0.0.0.0` without adding authentication.
+
+### CSRF Protection
+
+All POST endpoints validate a CSRF token before processing:
+
+1. On every GET request, the server generates a per-session CSRF token
+   (`secrets.token_hex(32)`) and stores it in memory keyed by session ID
+2. The session ID is set as an `HttpOnly`, `SameSite=Strict` cookie
+   (`gcs_session`)
+3. Every HTML form includes a hidden `csrf_token` field
+4. On POST, `_validate_csrf()` compares the form token against the session
+   token using `secrets.compare_digest()` (timing-safe)
+5. Mismatches return HTTP 403
+
+This prevents cross-origin attacks (DNS rebinding, malicious pages targeting
+localhost) from submitting forms to the web UI.
+
+### Disabled Endpoints
+
+OpenAPI (`/openapi.json`), Swagger UI (`/docs`), and ReDoc (`/redoc`) are
+all disabled via `FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`.
+This prevents local processes from discovering endpoint structure.
+
+### Input Validation
+
+- Zone names: truncated to 10 characters
+- BPM values: clamped to [0, 250]
+- Sync interval: validated against allowlist `{15, 30, 60, 120, 360, 720, 1440}`
+- Data export keys: validated against fixed allowlist
 
 ---
 
-### SEC-06: .gitignore missing patterns [LOW -- FIXED]
+## 4. MCP Transport Modes
 
-**File**: `.gitignore`
-**Status**: Fixed in this review
+The server supports two transport modes, selected via the `MCP_MODE`
+environment variable:
 
-The original `.gitignore` covered `.env` and `.session/` but missed common
-patterns that could leak secrets:
+### stdio (default -- safe)
 
-- `.env.*` variants (e.g., `.env.local`, `.env.production`)
-- `.DS_Store` and `Thumbs.db` (OS metadata files)
-- Generic `*.log` pattern
+The server communicates over stdin/stdout with Claude Desktop as the parent
+process. No network port is opened. Only Claude Desktop can send requests.
+This is the recommended mode for local use.
 
-**Fix applied**: Added comprehensive ignore patterns with clear section
-comments. `.env.example` is explicitly un-ignored so it remains tracked.
+### SSE (network -- requires caution)
 
----
-
-### SEC-07: SSE transport mode has no authentication [HIGH -- OPEN]
-
-**File**: `src/garmin_mcp/server.py:184-191`
-**Status**: Open -- requires design decision
-
-The MCP server supports an `MCP_MODE=sse` environment variable that switches
-from stdio to HTTP SSE transport. In SSE mode, the server listens on a
-network port with **no authentication**. Any process that can reach the port
+Setting `MCP_MODE=sse` starts the server as an HTTP SSE endpoint. **This
+mode currently has no authentication.** Any process that can reach the port
 gets full read access to the user's Garmin health data.
 
-While stdio mode (the default) is inherently secure because only the parent
-process can communicate with the server, SSE mode should not be used without
-authentication.
+**Production use of SSE mode requires an authentication layer.** Recommended
+approach:
 
-**Recommendation**:
-1. Add a `MCP_API_KEY` environment variable. When SSE mode is enabled,
-   require an `Authorization: Bearer <key>` header on all requests.
-2. If `MCP_MODE=sse` is set without `MCP_API_KEY`, refuse to start and
-   log an error explaining why.
-3. Document this clearly in `docs/claude_desktop_setup.md`.
+1. Set `MCP_API_KEY` in the environment with a strong random value
+2. The server should require `Authorization: Bearer <MCP_API_KEY>` on all
+   incoming SSE requests
+3. If `MCP_MODE=sse` is set without `MCP_API_KEY`, the server should refuse
+   to start
 
----
-
-### SEC-08: Web UI credentials endpoint is unauthenticated [MEDIUM -- OPEN]
-
-**File**: `src/garmin_mcp/web/app.py`
-**Status**: Open -- mitigated by CSRF fix
-
-The `POST /credentials` endpoint allows overwriting Garmin credentials in
-`.env` without any user authentication. While CSRF protection (SEC-02 fix)
-prevents cross-origin attacks, any local process or browser extension that
-can make HTTP requests to `127.0.0.1:8585` can still modify credentials.
-
-**Recommendation**: Consider one of:
-1. Remove the credentials page entirely and document `.env` editing as the
-   only way to set credentials (simplest, smallest attack surface).
-2. Add a local authentication mechanism (e.g., a randomly generated admin
-   token printed to stdout on server start, required as a query parameter
-   or cookie to access the credentials page).
+This is not yet implemented. **Do not expose SSE mode on a network without
+adding authentication first.**
 
 ---
 
-### SEC-09: Broad exception handling silences security errors [LOW -- OPEN]
+## 5. Input Validation
 
-**Files**: `src/garmin_mcp/tools/health.py`, `src/garmin_mcp/tools/activities.py`
-**Status**: Open -- noted for future improvement
+All MCP tool parameters are validated in `server.py` before being passed to
+the Garmin API client:
 
-All API calls in the tool modules use bare `except Exception` blocks that
-catch and silently discard all errors, including authentication failures and
-rate-limit errors. This means:
+| Parameter | Validation | Implementation |
+|-----------|-----------|----------------|
+| `activity_id` | Must match `^\d{1,20}$` | `_validate_activity_id()` |
+| `start_date`, `end_date`, `target_date` | Must match `^\d{4}-\d{2}-\d{2}$` and be a valid calendar date (`date.fromisoformat()`) | `_validate_date()` |
+| `days` (all health tools) | Clamped to [1, 90] | `_clamp_days()` |
+| `limit` (get_recent_activities) | Clamped to [1, 50] | Inline `max/min` |
+| Zone `min_bpm`, `max_bpm` (web UI) | Clamped to [0, 250] | Inline `max/min` |
+| Zone `name` (web UI) | Truncated to 10 chars | `str()[:10]` |
+| `interval_minutes` (web UI) | Allowlist: {15, 30, 60, 120, 360, 720, 1440} | Set membership check |
 
-- If a session token expires mid-request, the error is swallowed and `None`
-  values are returned instead of triggering re-authentication.
-- If Garmin rate-limits the client (HTTP 429), the tool continues firing
-  requests rather than backing off.
-
-**Recommendation**: Catch specific exception types. Let
-`GarminConnectAuthenticationError` propagate so `call_with_retry` can
-handle re-auth. Catch `GarminConnectTooManyRequestsError` separately and
-implement backoff.
-
----
-
-### SEC-10: Claude Desktop config example includes plaintext password [LOW -- OPEN]
-
-**File**: `docs/claude_desktop_setup.md:37-39`
-**Status**: Open -- documentation issue
-
-The example `claude_desktop_config.json` includes the password as a
-plaintext string in the `env` block. While this is typical for MCP server
-configuration, users should be warned that this file is stored on disk in a
-well-known location and may be readable by other applications.
-
-**Recommendation**: Add a security note to the setup docs explaining:
-- The config file contains your Garmin password in plaintext
-- On macOS, the file is at `~/Library/Application Support/Claude/`
-- Consider using a separate `.env` file and `dotenv` loading instead of
-  inline env vars if your machine is shared
+The `days` cap at 90 also serves as a rate-limit safety net. Without it,
+`get_hrv_trend(days=10000)` would fire 10,000 sequential requests to
+Garmin's servers, risking account lockout.
 
 ---
 
-## Summary Table
+## 6. Known Limitations
 
-| ID | Severity | Status | Description |
-|----|----------|--------|-------------|
-| SEC-01 | CRITICAL | Fixed | Plaintext password in config.json |
-| SEC-02 | HIGH | Fixed | No CSRF protection on web UI |
-| SEC-03 | LOW | Fixed | OpenAPI docs exposed |
-| SEC-04 | MEDIUM | Fixed | No MCP input validation |
-| SEC-05 | MEDIUM | Fixed | Session token dir permissions |
-| SEC-06 | LOW | Fixed | Incomplete .gitignore |
-| SEC-07 | HIGH | Open | SSE mode has no authentication |
-| SEC-08 | MEDIUM | Open | Credentials endpoint unauthenticated |
-| SEC-09 | LOW | Open | Broad exception handling |
-| SEC-10 | LOW | Open | Docs show plaintext password |
+### Garmin credentials are plaintext on disk
 
-**Fixed**: 6 findings
-**Open**: 4 findings (none CRITICAL; 1 HIGH requires design decision)
+The `.env` file stores the Garmin password as plaintext. This is inherent to
+the `python-dotenv` approach and consistent with standard Python project
+conventions. Mitigation: `.env` is gitignored, and the web UI creates it
+with `0600` permissions.
+
+### MFA is not supported
+
+The `garminconnect` library supports MFA via `prompt_mfa` and
+`return_on_mfa` parameters, but GarminClaudeSync does not pass these. Users
+with MFA enabled on their Garmin account will get an authentication error.
+Garmin has been pushing MFA adoption, so this will affect a growing number
+of users over time.
+
+### Unofficial API
+
+`garminconnect` reverse-engineers Garmin's web authentication. This is not
+an official API. Garmin may break compatibility without notice. The
+`call_with_retry` mechanism handles transient auth failures, but a
+fundamental protocol change by Garmin will require a library update.
+
+### Broad exception handling in tool modules
+
+The tool modules (`health.py`, `activities.py`, `training.py`) use bare
+`except Exception` blocks that catch all errors including auth failures and
+rate limits. This means `call_with_retry` in `server.py` cannot re-auth on
+mid-session token expiry within a day-by-day loop. A future improvement
+should catch specific Garmin exception types and let auth errors propagate.
+
+### Claude Desktop config contains plaintext password
+
+The `claude_desktop_config.json` example in `docs/claude_desktop_setup.md`
+includes the password in the `env` block. This is standard for MCP server
+configuration, but users should be aware the file is stored at a well-known
+path (`~/Library/Application Support/Claude/` on macOS).
 
 ---
 
-## Files Modified in This Review
+## 7. For Contributors
 
-- `src/garmin_mcp/garmin_client.py` -- session dir permissions (SEC-05)
-- `src/garmin_mcp/web/config_store.py` -- credential stripping (SEC-01)
-- `src/garmin_mcp/web/app.py` -- CSRF protection, OpenAPI disabled (SEC-02, SEC-03)
-- `src/garmin_mcp/web/templates/index.html` -- CSRF token hidden fields
-- `src/garmin_mcp/server.py` -- input validation on all MCP tools (SEC-04)
-- `.gitignore` -- additional sensitive file patterns (SEC-06)
-- `SECURITY.md` -- this document (new file)
+### Do NOT:
+
+- **Log credentials.** Never log `GARMIN_EMAIL` or `GARMIN_PASSWORD` at any
+  level. The `Settings` dataclass is `frozen` and should not have a
+  `__repr__` that exposes field values.
+
+- **Commit `.env` or `.session/`.** Both are gitignored. If you see either
+  in `git status`, something is wrong. Run `git rm --cached` immediately.
+
+- **Store secrets in `config.json`.** Use `.env` for anything sensitive.
+  The config store actively strips credential keys as a safety net, but
+  do not rely on this -- never put secrets in the config dict.
+
+- **Expose SSE mode without authentication.** The SSE transport opens a
+  network port. Do not change the binding from `127.0.0.1` or remove the
+  localhost restriction without implementing bearer token auth.
+
+- **Disable CSRF validation.** Every POST endpoint in the web UI must call
+  `_validate_csrf(request)`. Every HTML form must include the
+  `csrf_token` hidden field.
+
+- **Pass MCP tool inputs directly to API calls.** All user-supplied
+  parameters (dates, IDs, counts) must be validated in `server.py` before
+  reaching the Garmin client. Use the existing validation helpers.
+
+- **Catch broad exceptions around Garmin API calls** without re-raising
+  auth errors. `GarminConnectAuthenticationError` should propagate to
+  `call_with_retry`. Only catch specific, expected exceptions.
+
+### File permissions checklist
+
+| Path | Expected | Enforced by |
+|------|----------|-------------|
+| `.env` | 0600 | `web/app.py` `Path.touch(mode=0o600)` |
+| `.session/` | 0700 | `garmin_client.py` `os.chmod()` |
+| `config.json` | 0600 | `config_store.py` `os.chmod()` |
