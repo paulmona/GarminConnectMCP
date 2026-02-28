@@ -339,8 +339,12 @@ def main():
     """
     mode = os.environ.get("MCP_MODE", "stdio")
     if mode == "sse":
+        from mcp.server.transport_security import TransportSecuritySettings
         mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")
         mcp.settings.port = int(os.environ.get("MCP_PORT", "8000"))
+        mcp.settings.transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=False
+        )
         api_key = os.environ.get("MCP_API_KEY", "").strip()
         if api_key:
             import anyio
