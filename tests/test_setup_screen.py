@@ -49,7 +49,7 @@ class TestSetupPage:
     async def test_setup_page_renders(self, _mock_exists, client):
         response = await client.get("/setup")
         assert response.status_code == 200
-        assert "Welcome to GarminClaudeSync" in response.text
+        assert "Welcome to Garmin MCP Server" in response.text
         assert "csrf_token" in response.text
 
     @patch("garmin_mcp.web.app.credentials.exists", return_value=False)

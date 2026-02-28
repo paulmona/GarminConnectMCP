@@ -57,7 +57,7 @@ class TestWebServerStartup:
                         f"http://127.0.0.1:{port}/setup", follow_redirects=False
                     )
                     assert "text/html" in r.headers["content-type"]
-                    assert "GarminClaudeSync" in r.text
+                    assert "Garmin MCP Server" in r.text
                     return
                 except httpx.ConnectError:
                     time.sleep(0.1)
@@ -94,11 +94,11 @@ class TestWebServerStartup:
 class TestMcpServerRegistration:
     """Tests that the MCP server registers all expected tools."""
 
-    def test_mcp_server_has_eleven_tools(self):
+    def test_mcp_server_has_thirteen_tools(self):
         from garmin_mcp.server import mcp
 
         tools = mcp._tool_manager.list_tools()
-        assert len(tools) == 11
+        assert len(tools) == 13
 
     def test_mcp_server_tool_names(self):
         from garmin_mcp.server import mcp
@@ -116,6 +116,8 @@ class TestMcpServerRegistration:
             "get_race_predictions",
             "get_weekly_summary",
             "get_recovery_snapshot",
+            "get_weight_trend",
+            "get_body_composition",
         }
         assert names == expected
 

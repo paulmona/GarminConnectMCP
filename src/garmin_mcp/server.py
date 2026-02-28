@@ -258,6 +258,42 @@ def get_recovery_snapshot() -> str:
         return NOT_CONFIGURED_MSG
 
 
+# --- Body composition tools ---
+
+
+@mcp.tool()
+def get_weight_trend(days: int = 30) -> str:
+    """Get weight trend over recent days including daily weights, BMI,
+    and a summary of min/max/average/change. Max 90 days."""
+    from .tools.body import get_weight_trend as _get
+
+    days = _clamp_days(days)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_body_composition(days: int = 30) -> str:
+    """Get body composition trend over recent days including body fat %,
+    muscle mass, bone mass, body water %, visceral fat, and metabolic age.
+    Data only available if you use a Garmin smart scale. Max 90 days."""
+    from .tools.body import get_body_composition as _get
+
+    days = _clamp_days(days)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
 def main():
     """Start the MCP server."""
     mode = os.environ.get("MCP_MODE", "stdio")
