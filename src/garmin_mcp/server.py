@@ -303,8 +303,8 @@ def main():
     """
     mode = os.environ.get("MCP_MODE", "stdio")
     if mode == "sse":
-        host = os.environ.get("MCP_HOST", "0.0.0.0")
-        port = int(os.environ.get("MCP_PORT", "8000"))
-        mcp.run(transport="sse", host=host, port=port)
+        mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")
+        mcp.settings.port = int(os.environ.get("MCP_PORT", "8000"))
+        mcp.run(transport="sse")
     else:
         mcp.run(transport="stdio")
