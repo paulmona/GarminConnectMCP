@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import re
+import secrets
+import time
 from datetime import date
 from typing import Any
 
@@ -297,6 +299,81 @@ def get_body_composition(days: int = 30) -> str:
         return NOT_CONFIGURED_MSG
 
 
+class _SimpleOAuthProvider:
+    """Minimal in-memory OAuth 2.0 provider for personal use.
+
+    Auto-approves every authorization request and issues MCP_API_KEY as the
+    access token. All state is in memory and resets on container restart.
+    """
+
+    def __init__(self, api_key: str) -> None:
+        from mcp.server.auth.provider import AccessToken, AuthorizationCode, RefreshToken
+        self._api_key = api_key
+        self._clients: dict = {}
+        self._auth_codes: dict = {}
+        self._refresh_tokens: dict = {}
+
+    async def get_client(self, client_id: str):
+        return self._clients.get(client_id)
+
+    async def register_client(self, client_info) -> None:
+        self._clients[client_info.client_id] = client_info
+
+    async def authorize(self, client, params) -> str:
+        from mcp.server.auth.provider import AuthorizationCode, construct_redirect_uri
+        code = secrets.token_urlsafe(32)
+        self._auth_codes[code] = AuthorizationCode(
+            code=code,
+            scopes=params.scopes or [],
+            expires_at=time.time() + 300,
+            client_id=client.client_id,
+            code_challenge=params.code_challenge,
+            redirect_uri=params.redirect_uri,
+            redirect_uri_provided_explicitly=params.redirect_uri_provided_explicitly,
+            resource=params.resource,
+        )
+        return construct_redirect_uri(str(params.redirect_uri), code=code, state=params.state)
+
+    async def load_authorization_code(self, client, authorization_code: str):
+        return self._auth_codes.get(authorization_code)
+
+    async def exchange_authorization_code(self, client, authorization_code):
+        from mcp.server.auth.provider import OAuthToken, RefreshToken
+        del self._auth_codes[authorization_code.code]
+        refresh = secrets.token_urlsafe(32)
+        self._refresh_tokens[refresh] = RefreshToken(
+            token=refresh, client_id=client.client_id, scopes=authorization_code.scopes
+        )
+        return OAuthToken(access_token=self._api_key, token_type="Bearer", refresh_token=refresh)
+
+    async def load_access_token(self, token: str):
+        from mcp.server.auth.provider import AccessToken
+        if token != self._api_key:
+            return None
+        return AccessToken(token=token, client_id="claude", scopes=[])
+
+    async def load_refresh_token(self, client, refresh_token: str):
+        t = self._refresh_tokens.get(refresh_token)
+        return t if t and t.client_id == client.client_id else None
+
+    async def exchange_refresh_token(self, client, refresh_token, scopes):
+        from mcp.server.auth.provider import OAuthToken, RefreshToken
+        del self._refresh_tokens[refresh_token.token]
+        new_token = secrets.token_urlsafe(32)
+        self._refresh_tokens[new_token] = RefreshToken(
+            token=new_token, client_id=client.client_id, scopes=refresh_token.scopes
+        )
+        return OAuthToken(access_token=self._api_key, token_type="Bearer", refresh_token=new_token)
+
+    async def revoke_token(self, token) -> None:
+        from mcp.server.auth.provider import RefreshToken
+        if isinstance(token, RefreshToken):
+            self._refresh_tokens.pop(token.token, None)
+
+    async def verify_token(self, token: str):
+        return await self.load_access_token(token)
+
+
 class _AcceptHeaderMiddleware:
     """Normalize Accept headers before requests reach the MCP transport.
 
@@ -377,9 +454,22 @@ def main():
         if api_key:
             import anyio
             import uvicorn
+            from mcp.server.auth.provider import ProviderTokenVerifier
+            from mcp.server.auth.settings import ClientRegistrationOptions
+            from mcp.server.fastmcp.server import AuthSettings
+
+            server_url = os.environ.get("MCP_SERVER_URL", "http://localhost:8000").rstrip("/")
+            provider = _SimpleOAuthProvider(api_key)
+            mcp._auth_server_provider = provider
+            mcp._token_verifier = ProviderTokenVerifier(provider)
+            mcp.settings.auth = AuthSettings(
+                issuer_url=server_url,
+                resource_server_url=server_url,
+                client_registration_options=ClientRegistrationOptions(enabled=True),
+            )
 
             async def _run() -> None:
-                app = _BearerAuthMiddleware(mcp.sse_app(), api_key)
+                app = _AcceptHeaderMiddleware(mcp.streamable_http_app())
                 config = uvicorn.Config(
                     app,
                     host=mcp.settings.host,
