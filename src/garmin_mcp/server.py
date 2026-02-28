@@ -348,7 +348,9 @@ class _SimpleOAuthProvider:
 
     async def load_access_token(self, token: str):
         from mcp.server.auth.provider import AccessToken
-        if token != self._api_key:
+        match = token == self._api_key
+        _logger.info("load_access_token: match=%s token_len=%d key_len=%d", match, len(token), len(self._api_key))
+        if not match:
             return None
         return AccessToken(token=token, client_id="claude", scopes=[])
 
