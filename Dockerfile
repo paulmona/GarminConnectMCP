@@ -22,6 +22,6 @@ LABEL org.opencontainers.image.title="Garmin Connect MCP Server" \
       org.opencontainers.image.source="https://github.com/paulmon/GarminConnectMCP" \
       org.opencontainers.image.licenses="MIT" \
       net.unraid.docker.icon="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/garmin-connect.png" \
-      net.unraid.docker.webui="http://[IP]:[PORT:8000]/sse"
+      net.unraid.docker.webui="http://[IP]:[PORT:8000]/mcp"
 
 CMD ["uv", "run", "garmin-mcp"]

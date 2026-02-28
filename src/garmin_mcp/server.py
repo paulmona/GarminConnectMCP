@@ -363,9 +363,9 @@ def main():
             anyio.run(_run)
         else:
             _logger.warning(
-                "MCP_API_KEY not set — SSE endpoint is unauthenticated. "
+                "MCP_API_KEY not set — endpoint is unauthenticated. "
                 "Set MCP_API_KEY to require Bearer token auth."
             )
-            mcp.run(transport="sse")
+            mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
