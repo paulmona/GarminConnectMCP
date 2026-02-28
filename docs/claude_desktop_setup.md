@@ -4,36 +4,15 @@
 
 1. Clone the repo and install dependencies:
    ```bash
-   cd GarminClaudeSync
+   git clone https://github.com/paulmona/GarminConnectMCP.git
+   cd GarminConnectMCP
    uv sync
    ```
 
-2. Complete first-time setup (see below).
-
-3. Verify the server starts:
+2. Verify the server starts:
    ```bash
-   uv run garmin-mcp
+   GARMIN_EMAIL=your@email.com GARMIN_PASSWORD=yourpassword uv run garmin-mcp
    ```
-
-## First-Time Setup
-
-Before using the MCP server, you need to configure your Garmin credentials:
-
-1. Start the web UI:
-   ```bash
-   uv run garmin-web
-   ```
-
-2. Visit [http://localhost:8585](http://localhost:8585) in your browser.
-
-3. Enter your Garmin Connect email and password on the setup screen. Your
-   credentials are verified against Garmin's servers before being saved.
-
-4. Once credentials are saved, configure Claude Desktop (see below).
-
-Credentials are stored locally in `config/garmin_auth.json` with owner-only
-file permissions. This file is gitignored and should never be committed or
-placed in the Claude Desktop config file.
 
 ## Claude Desktop Configuration
 
@@ -46,27 +25,27 @@ Add the following to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "garmin": {
-      "command": "uv",
+      "command": "/absolute/path/to/uv",
       "args": [
         "run",
         "--directory",
-        "/absolute/path/to/GarminClaudeSync",
+        "/absolute/path/to/GarminConnectMCP",
         "garmin-mcp"
-      ]
+      ],
+      "env": {
+        "GARMIN_EMAIL": "your@email.com",
+        "GARMIN_PASSWORD": "yourpassword"
+      }
     }
   }
 }
 ```
 
-Replace `/absolute/path/to/GarminClaudeSync` with the actual path to your cloned repo.
+Use the full path to `uv` (find it with `which uv`) and replace the directory path with wherever you cloned the repo.
 
-## SSE Mode (Remote)
+## SSE Mode (Remote / Docker)
 
-To run as an HTTP server instead of stdio:
-
-```bash
-MCP_MODE=sse uv run garmin-mcp
-```
+See the Docker section of the main README for running as an HTTP server.
 
 ## Available Tools
 
@@ -83,3 +62,5 @@ Once connected, Claude will have access to these tools:
 - **get_race_predictions** - Predicted race finish times
 - **get_weekly_summary** - Composite weekly training summary
 - **get_recovery_snapshot** - All key recovery metrics in one call
+- **get_weight_trend** - Weight trend with min/max/average
+- **get_body_composition** - Body fat %, muscle mass, and more (requires Garmin smart scale)

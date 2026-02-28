@@ -1,6 +1,6 @@
 # Security
 
-Security model and hardening notes for GarminClaudeSync.
+Security model and hardening notes for Garmin Connect MCP Server.
 
 Last reviewed: 2026-02-27
 
@@ -8,7 +8,7 @@ Last reviewed: 2026-02-27
 
 ## 1. Credential Storage
 
-GarminClaudeSync needs a Garmin Connect email and password. These are stored
+Garmin Connect MCP Server needs a Garmin Connect email and password. These are stored
 in **two places**, each with different sensitivity:
 
 | Store | Contents | File permissions | In .gitignore |
@@ -161,7 +161,7 @@ with `0600` permissions.
 ### MFA is not supported
 
 The `garminconnect` library supports MFA via `prompt_mfa` and
-`return_on_mfa` parameters, but GarminClaudeSync does not pass these. Users
+`return_on_mfa` parameters, but Garmin Connect MCP Server does not pass these. Users
 with MFA enabled on their Garmin account will get an authentication error.
 Garmin has been pushing MFA adoption, so this will affect a growing number
 of users over time.

@@ -1,6 +1,6 @@
 services:
-  garmin-mcp:
-    image: paulmon/garmin-mcp:latest
+  garmin-connect-mcp:
+    image: paulmon/garmin-connect-mcp:latest
     build: .
     ports:
       - "8000:8000"

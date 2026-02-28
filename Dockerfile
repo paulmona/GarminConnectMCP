@@ -17,7 +17,7 @@ EXPOSE 8000
 
 ENV MCP_MODE=sse
 
-LABEL org.opencontainers.image.title="Garmin MCP Server" \
+LABEL org.opencontainers.image.title="Garmin Connect MCP Server" \
       org.opencontainers.image.description="MCP server exposing Garmin Connect data (HRV, sleep, activities, recovery) to Claude AI" \
       org.opencontainers.image.source="https://github.com/paulmon/GarminConnectMCP" \
       org.opencontainers.image.licenses="MIT" \

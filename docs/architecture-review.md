@@ -1,4 +1,4 @@
-# Architecture Review: GarminClaudeSync
+# Architecture Review: Garmin Connect MCP Server
 
 Devil's advocate review of design decisions, resilience gaps, and security
 concerns. Each section contains a CONCERN and a RECOMMENDATION.

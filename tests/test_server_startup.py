@@ -34,7 +34,7 @@ class TestMcpServerRegistration:
     def test_mcp_server_name(self):
         from garmin_mcp.server import mcp
 
-        assert mcp.name == "garmin-mcp"
+        assert mcp.name == "Garmin Connect MCP"
 
     def test_main_entrypoint_callable(self):
         from garmin_mcp.server import main

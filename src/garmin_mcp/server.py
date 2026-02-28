@@ -19,7 +19,7 @@ NOT_CONFIGURED_MSG = json.dumps({
     "message": "Garmin credentials not configured. Set GARMIN_EMAIL and GARMIN_PASSWORD environment variables.",
 })
 
-mcp = FastMCP("garmin-mcp")
+mcp = FastMCP("Garmin Connect MCP")
 
 _client: GarminClient | None = None
 

@@ -97,7 +97,7 @@ GARMIN_EMAIL=your@email.com GARMIN_PASSWORD=yourpassword \
   docker run -d -p 8000:8000 \
   -e GARMIN_EMAIL -e GARMIN_PASSWORD -e MCP_MODE=sse \
   -v garmin-session:/app/config/.session \
-  paulmona/garmin-mcp:latest
+  paulmon/garmin-connect-mcp:latest
 ```
 
 ### Claude Desktop config
