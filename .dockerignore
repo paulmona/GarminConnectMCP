@@ -1,14 +1,20 @@
-.venv/
-__pycache__/
-*.pyc
-*.egg-info/
+# Python artifacts
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
 dist/
 .pytest_cache/
+
+# Local runtime data (never in image)
+.venv/
 config/
+.env
+.env.*
+
+# Dev / repo metadata
 tests/
 docs/
 *.md
-.env
-.env.*
 .git/
 .gitignore
+docker-compose.yml
