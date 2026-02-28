@@ -8,7 +8,13 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from .credentials import CredentialsNotConfiguredError
 from .garmin_client import GarminClient
+
+NOT_CONFIGURED_MSG = json.dumps({
+    "error": "not_configured",
+    "message": "Garmin credentials not configured. Visit http://localhost:8585/setup to complete setup.",
+})
 
 mcp = FastMCP("garmin-mcp")
 
@@ -66,10 +72,13 @@ def get_recent_activities(
     from .tools.activities import get_recent_activities as _get
 
     limit = max(1, min(limit, _MAX_ACTIVITIES))
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, limit=limit, activity_type=activity_type)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, limit=limit, activity_type=activity_type)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -79,10 +88,13 @@ def get_activity_detail(activity_id: str) -> str:
     from .tools.activities import get_activity_detail as _get
 
     activity_id = _validate_activity_id(activity_id)
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, activity_id=activity_id)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, activity_id=activity_id)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -97,15 +109,18 @@ def get_activities_in_range(
 
     start_date = _validate_date(start_date)
     end_date = _validate_date(end_date)
-    result = _get_client().call_with_retry(
-        lambda api: _get(
-            api,
-            start_date=start_date,
-            end_date=end_date,
-            activity_type=activity_type,
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(
+                api,
+                start_date=start_date,
+                end_date=end_date,
+                activity_type=activity_type,
+            )
         )
-    )
-    return _to_json(result)
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 # --- Health tools ---
@@ -118,10 +133,13 @@ def get_hrv_trend(days: int = 28) -> str:
     from .tools.health import get_hrv_trend as _get
 
     days = _clamp_days(days)
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, days=days)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -131,10 +149,13 @@ def get_sleep_history(days: int = 14) -> str:
     from .tools.health import get_sleep_history as _get
 
     days = _clamp_days(days)
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, days=days)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -144,10 +165,13 @@ def get_body_battery(days: int = 7) -> str:
     from .tools.health import get_body_battery as _get
 
     days = _clamp_days(days)
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, days=days)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -157,10 +181,13 @@ def get_resting_hr_trend(days: int = 14) -> str:
     from .tools.health import get_resting_hr_trend as _get
 
     days = _clamp_days(days)
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, days=days)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 # --- Training tools ---
@@ -172,10 +199,13 @@ def get_training_status() -> str:
     readiness score, and recovery time."""
     from .tools.training import get_training_status as _get
 
-    result = _get_client().call_with_retry(
-        lambda api: _get(api)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -184,10 +214,13 @@ def get_race_predictions() -> str:
     half marathon, marathon) based on your Garmin fitness data."""
     from .tools.training import get_race_predictions as _get
 
-    result = _get_client().call_with_retry(
-        lambda api: _get(api)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -199,10 +232,13 @@ def get_weekly_summary(target_date: str | None = None) -> str:
 
     if target_date is not None:
         target_date = _validate_date(target_date)
-    result = _get_client().call_with_retry(
-        lambda api: _get(api, target_date=target_date)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, target_date=target_date)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 @mcp.tool()
@@ -213,10 +249,13 @@ def get_recovery_snapshot() -> str:
     level, yesterday's resting HR, and training readiness score."""
     from .tools.training import get_recovery_snapshot as _get
 
-    result = _get_client().call_with_retry(
-        lambda api: _get(api)
-    )
-    return _to_json(result)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
 
 
 def main():
