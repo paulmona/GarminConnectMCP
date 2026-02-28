@@ -64,35 +64,42 @@ def _read_credentials() -> dict[str, str]:
     }
 
 
-def _credentials_context(request: Request, config: dict, flash: str = "") -> dict:
-    """Build template context for the credentials page."""
-    creds = _read_credentials()
+def _make_response(request: Request, page: str, extra_ctx: dict | None = None):
+    """Build a TemplateResponse with CSRF token and session cookie."""
+    session_id = _ensure_session(request)
+    csrf_token = _get_csrf_token(session_id)
+    config = load_config()
     ctx = {
         "request": request,
         "config": config,
-        "page": "credentials",
-        "garmin_email": creds["email"],
-        "has_password": bool(creds["password"]),
+        "page": page,
+        "csrf_token": csrf_token,
     }
-    if flash:
-        ctx["flash"] = flash
-    return ctx
+    if extra_ctx:
+        ctx.update(extra_ctx)
+    response = templates.TemplateResponse("index.html", ctx)
+    response.set_cookie(
+        "gcs_session", session_id, httponly=True, samesite="strict",
+    )
+    return response
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html", _credentials_context(request, config)
-    )
+    creds = _read_credentials()
+    return _make_response(request, "credentials", {
+        "garmin_email": creds["email"],
+        "has_password": bool(creds["password"]),
+    })
 
 
 @app.get("/credentials", response_class=HTMLResponse)
 async def credentials_page(request: Request):
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html", _credentials_context(request, config)
-    )
+    creds = _read_credentials()
+    return _make_response(request, "credentials", {
+        "garmin_email": creds["email"],
+        "has_password": bool(creds["password"]),
+    })
 
 
 @app.post("/credentials")
@@ -101,16 +108,18 @@ async def save_credentials(
     email: str = Form(""),
     password: str = Form(""),
 ):
+    await _validate_csrf(request)
     if not ENV_PATH.exists():
-        ENV_PATH.touch()
+        ENV_PATH.touch(mode=0o600)
     set_key(str(ENV_PATH), "GARMIN_EMAIL", email)
     if password:
         set_key(str(ENV_PATH), "GARMIN_PASSWORD", password)
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html",
-        _credentials_context(request, config, flash="Credentials saved to .env."),
-    )
+    creds = _read_credentials()
+    return _make_response(request, "credentials", {
+        "garmin_email": creds["email"],
+        "has_password": bool(creds["password"]),
+        "flash": "Credentials saved to .env.",
+    })
 
 
 @app.get("/hr-zones", response_class=HTMLResponse)
