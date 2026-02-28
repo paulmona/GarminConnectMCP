@@ -349,6 +349,7 @@ class _SimpleOAuthProvider:
         return OAuthToken(
             access_token=access,
             token_type="Bearer",
+            expires_in=86400,
             scope=" ".join(authorization_code.scopes),
             refresh_token=refresh,
         )
@@ -383,6 +384,7 @@ class _SimpleOAuthProvider:
         return OAuthToken(
             access_token=access,
             token_type="Bearer",
+            expires_in=86400,
             scope=" ".join(refresh_token.scopes),
             refresh_token=new_refresh,
         )
@@ -488,7 +490,7 @@ def main():
             mcp._token_verifier = ProviderTokenVerifier(provider)
             mcp.settings.auth = AuthSettings(
                 issuer_url=server_url,
-                resource_server_url=server_url,
+                resource_server_url=server_url + "/mcp",
                 client_registration_options=ClientRegistrationOptions(
                     enabled=True,
                     valid_scopes=["claudeai"],
