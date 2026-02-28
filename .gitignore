@@ -1,10 +1,22 @@
+# Secrets and credentials
 .env
+.env.*
+!.env.example
 .session/
+config.json
+
+# Python
 __pycache__/
 *.pyc
 .venv/
 dist/
 *.egg-info/
 .pytest_cache/
+
+# Logs
 firebase-debug.log
-config.json
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

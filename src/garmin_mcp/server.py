@@ -2,6 +2,8 @@
 
 import json
 import os
+import re
+from datetime import date
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -11,6 +13,12 @@ from .garmin_client import GarminClient
 mcp = FastMCP("garmin-mcp")
 
 _client: GarminClient | None = None
+
+# Input validation constants
+_MAX_DAYS = 90
+_MAX_ACTIVITIES = 50
+_ACTIVITY_ID_RE = re.compile(r"^\d{1,20}$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _get_client() -> GarminClient:
@@ -24,6 +32,26 @@ def _to_json(data: Any) -> str:
     return json.dumps(data, default=str, indent=2)
 
 
+def _clamp_days(days: int, max_val: int = _MAX_DAYS) -> int:
+    """Clamp days to [1, max_val] range."""
+    return max(1, min(days, max_val))
+
+
+def _validate_date(d: str) -> str:
+    """Validate and return a YYYY-MM-DD date string. Raises ValueError on bad input."""
+    if not _DATE_RE.match(d):
+        raise ValueError(f"Invalid date format: {d!r}. Expected YYYY-MM-DD.")
+    date.fromisoformat(d)  # validates it is a real date
+    return d
+
+
+def _validate_activity_id(activity_id: str) -> str:
+    """Validate activity_id is a numeric string. Prevents injection."""
+    if not _ACTIVITY_ID_RE.match(activity_id):
+        raise ValueError(f"Invalid activity_id: {activity_id!r}. Expected numeric ID.")
+    return activity_id
+
+
 # --- Activities tools ---
 
 
@@ -34,9 +62,10 @@ def get_recent_activities(
 ) -> str:
     """Get recent Garmin activities. Returns date, name, distance, duration,
     heart rate, and pace for each activity. Optionally filter by activity type
-    (e.g. 'running', 'cycling', 'swimming')."""
+    (e.g. 'running', 'cycling', 'swimming'). Limit capped at 50."""
     from .tools.activities import get_recent_activities as _get
 
+    limit = max(1, min(limit, _MAX_ACTIVITIES))
     result = _get_client().call_with_retry(
         lambda api: _get(api, limit=limit, activity_type=activity_type)
     )
@@ -49,6 +78,7 @@ def get_activity_detail(activity_id: str) -> str:
     and heart rate zone breakdown. Use an activity_id from get_recent_activities."""
     from .tools.activities import get_activity_detail as _get
 
+    activity_id = _validate_activity_id(activity_id)
     result = _get_client().call_with_retry(
         lambda api: _get(api, activity_id=activity_id)
     )
@@ -65,6 +95,8 @@ def get_activities_in_range(
     Optionally filter by activity type."""
     from .tools.activities import get_activities_in_range as _get
 
+    start_date = _validate_date(start_date)
+    end_date = _validate_date(end_date)
     result = _get_client().call_with_retry(
         lambda api: _get(
             api,
@@ -82,9 +114,10 @@ def get_activities_in_range(
 @mcp.tool()
 def get_hrv_trend(days: int = 28) -> str:
     """Get Heart Rate Variability trend over recent days with 7-day rolling
-    average. Useful for tracking recovery and training readiness."""
+    average. Useful for tracking recovery and training readiness. Max 90 days."""
     from .tools.health import get_hrv_trend as _get
 
+    days = _clamp_days(days)
     result = _get_client().call_with_retry(
         lambda api: _get(api, days=days)
     )
@@ -94,9 +127,10 @@ def get_hrv_trend(days: int = 28) -> str:
 @mcp.tool()
 def get_sleep_history(days: int = 14) -> str:
     """Get sleep data over recent days including sleep score, total duration,
-    and time in each sleep stage (deep, light, REM, awake)."""
+    and time in each sleep stage (deep, light, REM, awake). Max 90 days."""
     from .tools.health import get_sleep_history as _get
 
+    days = _clamp_days(days)
     result = _get_client().call_with_retry(
         lambda api: _get(api, days=days)
     )
@@ -106,9 +140,10 @@ def get_sleep_history(days: int = 14) -> str:
 @mcp.tool()
 def get_body_battery(days: int = 7) -> str:
     """Get Garmin Body Battery levels over recent days including daily
-    highest, lowest, charged, and drained values."""
+    highest, lowest, charged, and drained values. Max 90 days."""
     from .tools.health import get_body_battery as _get
 
+    days = _clamp_days(days)
     result = _get_client().call_with_retry(
         lambda api: _get(api, days=days)
     )
@@ -118,9 +153,10 @@ def get_body_battery(days: int = 7) -> str:
 @mcp.tool()
 def get_resting_hr_trend(days: int = 14) -> str:
     """Get resting heart rate trend over recent days. Useful for tracking
-    cardiovascular fitness and recovery."""
+    cardiovascular fitness and recovery. Max 90 days."""
     from .tools.health import get_resting_hr_trend as _get
 
+    days = _clamp_days(days)
     result = _get_client().call_with_retry(
         lambda api: _get(api, days=days)
     )
@@ -161,6 +197,8 @@ def get_weekly_summary(target_date: str | None = None) -> str:
     Provide target_date (YYYY-MM-DD) for a specific week."""
     from .tools.training import get_weekly_summary as _get
 
+    if target_date is not None:
+        target_date = _validate_date(target_date)
     result = _get_client().call_with_retry(
         lambda api: _get(api, target_date=target_date)
     )
