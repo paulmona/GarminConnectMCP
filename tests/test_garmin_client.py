@@ -149,6 +149,61 @@ class TestAuthenticate:
         )
 
 
+class TestCallWithRetry:
+    """Test call_with_retry mid-session re-auth."""
+
+    @patch("garmin_mcp.garmin_client.Garmin")
+    def test_succeeds_on_first_attempt(self, MockGarmin, tmp_path):
+        settings = _make_settings(tmp_path)
+        mock_instance = MockGarmin.return_value
+        mock_instance.garth = MagicMock()
+
+        gc = GarminClient(settings=settings)
+        fn = MagicMock(return_value={"data": 42})
+
+        result = gc.call_with_retry(fn)
+
+        assert result == {"data": 42}
+        fn.assert_called_once_with(mock_instance)
+
+    @patch("garmin_mcp.garmin_client.Garmin")
+    def test_retries_after_auth_error(self, MockGarmin, tmp_path):
+        settings = _make_settings(tmp_path)
+        mock_instance = MockGarmin.return_value
+        mock_instance.garth = MagicMock()
+
+        gc = GarminClient(settings=settings)
+        fn = MagicMock(
+            side_effect=[
+                GarminConnectAuthenticationError("expired"),
+                {"data": 99},
+            ]
+        )
+
+        result = gc.call_with_retry(fn)
+
+        assert result == {"data": 99}
+        assert fn.call_count == 2
+        # Garmin constructor called twice (initial + re-auth)
+        assert MockGarmin.call_count == 2
+
+    @patch("garmin_mcp.garmin_client.Garmin")
+    def test_raises_if_retry_also_fails(self, MockGarmin, tmp_path):
+        settings = _make_settings(tmp_path)
+        mock_instance = MockGarmin.return_value
+        mock_instance.garth = MagicMock()
+
+        gc = GarminClient(settings=settings)
+        fn = MagicMock(
+            side_effect=GarminConnectAuthenticationError("permanent")
+        )
+
+        with pytest.raises(GarminConnectAuthenticationError):
+            gc.call_with_retry(fn)
+
+        assert fn.call_count == 2
+
+
 class TestSaveTokens:
     """Test _save_tokens static method."""
 
