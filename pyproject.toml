@@ -18,9 +18,10 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
 ]
-gdrive = [
+google = [
     "google-api-python-client>=2.100.0",
     "google-auth>=2.25.0",
+    "google-auth-httplib2>=0.2.0",
 ]
 
 [project.scripts]
