@@ -295,9 +295,16 @@ def get_body_composition(days: int = 30) -> str:
 
 
 def main():
-    """Start the MCP server."""
+    """Start the MCP server.
+
+    Transport is controlled by MCP_MODE:
+    - stdio (default): for local Claude Desktop use
+    - sse: for Docker / remote use; binds to MCP_HOST:MCP_PORT
+    """
     mode = os.environ.get("MCP_MODE", "stdio")
     if mode == "sse":
-        mcp.run(transport="sse")
+        host = os.environ.get("MCP_HOST", "0.0.0.0")
+        port = int(os.environ.get("MCP_PORT", "8000"))
+        mcp.run(transport="sse", host=host, port=port)
     else:
         mcp.run(transport="stdio")

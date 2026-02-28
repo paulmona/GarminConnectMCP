@@ -1,0 +1,16 @@
+services:
+  garmin-mcp:
+    image: paulmona/garmin-mcp:latest
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      GARMIN_EMAIL: ${GARMIN_EMAIL}
+      GARMIN_PASSWORD: ${GARMIN_PASSWORD}
+      MCP_MODE: sse
+    volumes:
+      - garmin-session:/app/config/.session
+    restart: unless-stopped
+
+volumes:
+  garmin-session:
