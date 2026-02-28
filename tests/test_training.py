@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from garmin_mcp.tools.training import (
     _format_time,
     get_race_predictions,
+    get_recovery_snapshot,
     get_training_status,
     get_weekly_summary,
 )
@@ -258,3 +259,186 @@ class TestGetWeeklySummary:
         result = get_weekly_summary(api=MagicMock())
 
         assert result["total_distance_km"] == 0
+
+
+# --- get_recovery_snapshot ---
+
+def _full_recovery_api():
+    """Create a mock API that returns full recovery data."""
+    api = MagicMock()
+    api.get_hrv_data.return_value = {
+        "hrvSummary": {
+            "lastNight": 42,
+            "lastNightAvg": 40,
+            "status": "BALANCED",
+            "baselineLowUpper": 30,
+            "baselineBalancedUpper": 50,
+        }
+    }
+    api.get_sleep_data.return_value = {
+        "dailySleepDTO": {
+            "sleepScores": {"overall": {"value": 85}},
+            "sleepTimeSeconds": 28800,
+        }
+    }
+    api.get_training_readiness.return_value = [
+        {
+            "score": 72,
+            "level": "MODERATE",
+            "recoveryTimeInHours": 12,
+        }
+    ]
+    return api
+
+
+class TestGetRecoverySnapshot:
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_returns_all_expected_keys(
+        self, mock_date, mock_bb, mock_rhr,
+    ):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.return_value = [
+            {"most_recent": 55, "highest": 90, "lowest": 20}
+        ]
+        mock_rhr.return_value = [
+            {"date": "2025-01-14", "resting_hr": 58},
+            {"date": "2025-01-15", "resting_hr": 60},
+        ]
+
+        api = _full_recovery_api()
+        result = get_recovery_snapshot(api)
+
+        expected_keys = {
+            "date",
+            "hrv_last_night",
+            "hrv_last_night_avg",
+            "hrv_status",
+            "hrv_baseline_low",
+            "hrv_baseline_high",
+            "sleep_score",
+            "sleep_duration_hours",
+            "body_battery_current",
+            "body_battery_highest",
+            "body_battery_lowest",
+            "resting_hr_yesterday",
+            "readiness_score",
+            "readiness_level",
+            "recovery_time_hours",
+        }
+        assert expected_keys.issubset(result.keys())
+        assert result["hrv_last_night"] == 42
+        assert result["hrv_status"] == "BALANCED"
+        assert result["sleep_score"] == 85
+        assert result["sleep_duration_hours"] == 8.0
+        assert result["body_battery_current"] == 55
+        assert result["resting_hr_yesterday"] == 58
+        assert result["readiness_score"] == 72
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_date_is_today_iso(self, mock_date, mock_bb, mock_rhr):
+        mock_date.today.return_value = date(2025, 3, 22)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.return_value = []
+        mock_rhr.return_value = []
+
+        api = MagicMock()
+        api.get_hrv_data.return_value = None
+        api.get_sleep_data.return_value = None
+        api.get_training_readiness.return_value = None
+
+        result = get_recovery_snapshot(api)
+
+        assert result["date"] == "2025-03-22"
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_hrv_failure_returns_none(self, mock_date, mock_bb, mock_rhr):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.return_value = [{"most_recent": 55, "highest": 90, "lowest": 20}]
+        mock_rhr.return_value = [{"date": "2025-01-14", "resting_hr": 58}]
+
+        api = _full_recovery_api()
+        api.get_hrv_data.side_effect = Exception("HRV API down")
+
+        result = get_recovery_snapshot(api)
+
+        assert result["hrv_last_night"] is None
+        # Other sections still populated
+        assert result["sleep_score"] == 85
+        assert result["readiness_score"] == 72
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_sleep_failure_returns_none(self, mock_date, mock_bb, mock_rhr):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.return_value = [{"most_recent": 55, "highest": 90, "lowest": 20}]
+        mock_rhr.return_value = [{"date": "2025-01-14", "resting_hr": 58}]
+
+        api = _full_recovery_api()
+        api.get_sleep_data.side_effect = Exception("Sleep API down")
+
+        result = get_recovery_snapshot(api)
+
+        assert result["sleep_score"] is None
+        assert result["hrv_last_night"] == 42
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_body_battery_failure_returns_none(
+        self, mock_date, mock_bb, mock_rhr,
+    ):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.side_effect = Exception("BB API down")
+        mock_rhr.return_value = [{"date": "2025-01-14", "resting_hr": 58}]
+
+        api = _full_recovery_api()
+        result = get_recovery_snapshot(api)
+
+        assert result["body_battery_current"] is None
+        assert result["hrv_last_night"] == 42
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_rhr_failure_returns_none(self, mock_date, mock_bb, mock_rhr):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.return_value = [{"most_recent": 55, "highest": 90, "lowest": 20}]
+        mock_rhr.side_effect = Exception("RHR API down")
+
+        api = _full_recovery_api()
+        result = get_recovery_snapshot(api)
+
+        assert result["resting_hr_yesterday"] is None
+        assert result["hrv_last_night"] == 42
+
+    @patch("garmin_mcp.tools.training.get_resting_hr_trend")
+    @patch("garmin_mcp.tools.training.get_body_battery")
+    @patch("garmin_mcp.tools.training.date")
+    def test_readiness_failure_returns_none(
+        self, mock_date, mock_bb, mock_rhr,
+    ):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_bb.return_value = [{"most_recent": 55, "highest": 90, "lowest": 20}]
+        mock_rhr.return_value = [{"date": "2025-01-14", "resting_hr": 58}]
+
+        api = _full_recovery_api()
+        api.get_training_readiness.side_effect = Exception("Readiness down")
+
+        result = get_recovery_snapshot(api)
+
+        assert result["readiness_score"] is None
+        assert result["hrv_last_night"] == 42
