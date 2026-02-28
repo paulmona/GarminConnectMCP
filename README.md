@@ -106,7 +106,7 @@ GARMIN_EMAIL=your@email.com GARMIN_PASSWORD=yourpassword \
 {
   "mcpServers": {
     "garmin": {
-      "url": "http://localhost:8000/sse"
+      "url": "http://localhost:8000/mcp"
     }
   }
 }
@@ -146,7 +146,7 @@ docker-compose.yml     # Compose config with session volume
 
 ## Security
 
-Credentials are passed via environment variables and never stored on disk or committed to git. OAuth session tokens are cached in `config/.session/` with owner-only permissions (or in a Docker volume). The SSE endpoint has no authentication — if exposing beyond localhost, place it behind a reverse proxy with authentication. See [SECURITY.md](SECURITY.md) for the full security model.
+Credentials are passed via environment variables and never stored on disk or committed to git. OAuth session tokens are cached in `config/.session/` with owner-only permissions (or in a Docker volume). When `MCP_API_KEY` is set, the server enforces Bearer token authentication on all requests and also exposes a full OAuth 2.0 PKCE server for claude.ai remote MCP. See [SECURITY.md](SECURITY.md) for the full security model.
 
 ## Running Tests
 
