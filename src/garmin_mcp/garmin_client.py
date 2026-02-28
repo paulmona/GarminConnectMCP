@@ -1,6 +1,10 @@
 """Garmin Connect client with session caching."""
 
 import logging
+import os
+import stat
+from collections.abc import Callable
+from typing import TypeVar
 
 from garminconnect import (
     Garmin,
@@ -9,6 +13,8 @@ from garminconnect import (
 )
 
 from .config import Settings
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +33,19 @@ class GarminClient:
             self._client = self._authenticate()
         return self._client
 
+    def invalidate(self) -> None:
+        """Clear cached client so the next access re-authenticates."""
+        self._client = None
+
+    def call_with_retry(self, fn: Callable[[Garmin], T]) -> T:
+        """Call fn(api) with one automatic re-auth retry on auth failure."""
+        try:
+            return fn(self.api)
+        except GarminConnectAuthenticationError:
+            logger.warning("Auth error during call, re-authenticating")
+            self.invalidate()
+            return fn(self.api)
+
     def _authenticate(self) -> Garmin:
         """Authenticate with Garmin Connect, using cached tokens if available."""
         client = Garmin(
@@ -35,6 +54,8 @@ class GarminClient:
         )
         token_dir = self._settings.session_dir
         token_dir.mkdir(parents=True, exist_ok=True)
+        # Restrict session directory to owner-only access
+        os.chmod(token_dir, stat.S_IRWXU)
         token_path = str(token_dir / "tokens")
 
         try:

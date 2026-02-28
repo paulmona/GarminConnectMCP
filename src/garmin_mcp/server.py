@@ -37,7 +37,9 @@ def get_recent_activities(
     (e.g. 'running', 'cycling', 'swimming')."""
     from .tools.activities import get_recent_activities as _get
 
-    result = _get(_get_client().api, limit=limit, activity_type=activity_type)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, limit=limit, activity_type=activity_type)
+    )
     return _to_json(result)
 
 
@@ -47,7 +49,9 @@ def get_activity_detail(activity_id: str) -> str:
     and heart rate zone breakdown. Use an activity_id from get_recent_activities."""
     from .tools.activities import get_activity_detail as _get
 
-    result = _get(_get_client().api, activity_id=activity_id)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, activity_id=activity_id)
+    )
     return _to_json(result)
 
 
@@ -61,11 +65,13 @@ def get_activities_in_range(
     Optionally filter by activity type."""
     from .tools.activities import get_activities_in_range as _get
 
-    result = _get(
-        _get_client().api,
-        start_date=start_date,
-        end_date=end_date,
-        activity_type=activity_type,
+    result = _get_client().call_with_retry(
+        lambda api: _get(
+            api,
+            start_date=start_date,
+            end_date=end_date,
+            activity_type=activity_type,
+        )
     )
     return _to_json(result)
 
@@ -79,7 +85,9 @@ def get_hrv_trend(days: int = 28) -> str:
     average. Useful for tracking recovery and training readiness."""
     from .tools.health import get_hrv_trend as _get
 
-    result = _get(_get_client().api, days=days)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, days=days)
+    )
     return _to_json(result)
 
 
@@ -89,7 +97,9 @@ def get_sleep_history(days: int = 14) -> str:
     and time in each sleep stage (deep, light, REM, awake)."""
     from .tools.health import get_sleep_history as _get
 
-    result = _get(_get_client().api, days=days)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, days=days)
+    )
     return _to_json(result)
 
 
@@ -99,7 +109,9 @@ def get_body_battery(days: int = 7) -> str:
     highest, lowest, charged, and drained values."""
     from .tools.health import get_body_battery as _get
 
-    result = _get(_get_client().api, days=days)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, days=days)
+    )
     return _to_json(result)
 
 
@@ -109,7 +121,9 @@ def get_resting_hr_trend(days: int = 14) -> str:
     cardiovascular fitness and recovery."""
     from .tools.health import get_resting_hr_trend as _get
 
-    result = _get(_get_client().api, days=days)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, days=days)
+    )
     return _to_json(result)
 
 
@@ -122,7 +136,9 @@ def get_training_status() -> str:
     readiness score, and recovery time."""
     from .tools.training import get_training_status as _get
 
-    result = _get(_get_client().api)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api)
+    )
     return _to_json(result)
 
 
@@ -132,7 +148,9 @@ def get_race_predictions() -> str:
     half marathon, marathon) based on your Garmin fitness data."""
     from .tools.training import get_race_predictions as _get
 
-    result = _get(_get_client().api)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api)
+    )
     return _to_json(result)
 
 
@@ -143,7 +161,9 @@ def get_weekly_summary(target_date: str | None = None) -> str:
     Provide target_date (YYYY-MM-DD) for a specific week."""
     from .tools.training import get_weekly_summary as _get
 
-    result = _get(_get_client().api, target_date=target_date)
+    result = _get_client().call_with_retry(
+        lambda api: _get(api, target_date=target_date)
+    )
     return _to_json(result)
 
 

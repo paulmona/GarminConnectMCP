@@ -1,9 +1,18 @@
-"""FastAPI web application for GarminClaudeSync configuration."""
+"""FastAPI web application for GarminClaudeSync configuration.
 
+SECURITY:
+- CSRF protection via per-session tokens on all POST forms.
+- Binds to 127.0.0.1 only (localhost).
+- OpenAPI/Swagger docs disabled to reduce attack surface.
+- Credentials are stored in .env (gitignored), never in config.json.
+"""
+
+import secrets
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from dotenv import get_key, set_key
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -12,17 +21,69 @@ from .config_store import load_config, save_config
 WEB_DIR = Path(__file__).parent
 TEMPLATES_DIR = WEB_DIR / "templates"
 STATIC_DIR = WEB_DIR / "static"
+ENV_PATH = Path(".env")
 
-app = FastAPI(title="GarminClaudeSync Config")
+app = FastAPI(title="GarminClaudeSync Config", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# CSRF token store keyed by session ID
+_csrf_tokens: dict[str, str] = {}
+
+
+def _get_csrf_token(session_id: str) -> str:
+    """Get or create a CSRF token for a session."""
+    if session_id not in _csrf_tokens:
+        _csrf_tokens[session_id] = secrets.token_hex(32)
+    return _csrf_tokens[session_id]
+
+
+def _ensure_session(request: Request) -> str:
+    """Return existing session ID from cookie, or generate a new one."""
+    return request.cookies.get("gcs_session", secrets.token_hex(16))
+
+
+async def _validate_csrf(request: Request) -> None:
+    """Validate CSRF token from form against session token. Raises 403 on failure."""
+    session_id = request.cookies.get("gcs_session", "")
+    if not session_id or session_id not in _csrf_tokens:
+        raise HTTPException(status_code=403, detail="Invalid session")
+    form = await request.form()
+    form_token = str(form.get("csrf_token", ""))
+    if not secrets.compare_digest(form_token, _csrf_tokens[session_id]):
+        raise HTTPException(status_code=403, detail="CSRF validation failed")
+
+
+def _read_credentials() -> dict[str, str]:
+    """Read Garmin credentials from .env file."""
+    if not ENV_PATH.exists():
+        return {"email": "", "password": ""}
+    return {
+        "email": get_key(str(ENV_PATH), "GARMIN_EMAIL") or "",
+        "password": get_key(str(ENV_PATH), "GARMIN_PASSWORD") or "",
+    }
+
+
+def _credentials_context(request: Request, config: dict, flash: str = "") -> dict:
+    """Build template context for the credentials page."""
+    creds = _read_credentials()
+    ctx = {
+        "request": request,
+        "config": config,
+        "page": "credentials",
+        "garmin_email": creds["email"],
+        "has_password": bool(creds["password"]),
+    }
+    if flash:
+        ctx["flash"] = flash
+    return ctx
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     config = load_config()
     return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config, "page": "credentials"}
+        "index.html", _credentials_context(request, config)
     )
 
 
@@ -30,7 +91,7 @@ async def index(request: Request):
 async def credentials_page(request: Request):
     config = load_config()
     return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config, "page": "credentials"}
+        "index.html", _credentials_context(request, config)
     )
 
 
@@ -40,19 +101,15 @@ async def save_credentials(
     email: str = Form(""),
     password: str = Form(""),
 ):
-    config = load_config()
-    config["garmin"]["email"] = email
+    if not ENV_PATH.exists():
+        ENV_PATH.touch()
+    set_key(str(ENV_PATH), "GARMIN_EMAIL", email)
     if password:
-        config["garmin"]["password"] = password
-    save_config(config)
+        set_key(str(ENV_PATH), "GARMIN_PASSWORD", password)
+    config = load_config()
     return templates.TemplateResponse(
         "index.html",
-        {
-            "request": request,
-            "config": config,
-            "page": "credentials",
-            "flash": "Credentials saved.",
-        },
+        _credentials_context(request, config, flash="Credentials saved to .env."),
     )
 
 

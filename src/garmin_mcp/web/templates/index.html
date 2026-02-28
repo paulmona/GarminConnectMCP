@@ -30,20 +30,20 @@
     {% if page == "credentials" %}
     <h2>Garmin Credentials</h2>
     <p class="text-muted" style="margin-bottom:1rem;font-size:0.85rem;">
-      Credentials are stored in plaintext in <code>config.json</code>.
-      Do not commit this file to version control.
+      Credentials are saved to the <code>.env</code> file and read by the MCP server at startup.
+      Do not commit <code>.env</code> to version control.
     </p>
     <form method="post" action="/credentials">
       <div class="form-group">
         <label for="email">Email</label>
         <input type="email" id="email" name="email"
-               value="{{ config.garmin.email }}" placeholder="you@example.com">
+               value="{{ garmin_email }}" placeholder="you@example.com">
       </div>
       <div class="form-group">
         <label for="password">Password</label>
         <input type="password" id="password" name="password"
-               placeholder="{{ '********' if config.garmin.password else '' }}">
-        {% if config.garmin.password %}
+               placeholder="{{ '********' if has_password else '' }}">
+        {% if has_password %}
         <small class="text-muted">Leave blank to keep current password.</small>
         {% endif %}
       </div>
