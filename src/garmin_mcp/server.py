@@ -467,7 +467,11 @@ def main():
             mcp.settings.auth = AuthSettings(
                 issuer_url=server_url,
                 resource_server_url=server_url,
-                client_registration_options=ClientRegistrationOptions(enabled=True),
+                client_registration_options=ClientRegistrationOptions(
+                    enabled=True,
+                    valid_scopes=["claudeai"],
+                    default_scopes=["claudeai"],
+                ),
             )
 
             async def _run() -> None:
