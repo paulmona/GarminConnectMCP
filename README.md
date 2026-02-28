@@ -22,14 +22,19 @@ Ask Claude questions like *"How was my recovery this week?"*, *"Am I ready for a
 | `get_weight_trend` | Daily weights with min/max/average/change summary |
 | `get_body_composition` | Body fat %, muscle mass, bone mass, visceral fat, metabolic age (requires Garmin smart scale) |
 
-## Requirements
+---
+
+## Option A — Local (Claude Desktop, stdio)
+
+Best for a single machine. Claude Desktop spawns the server as a local process.
+
+### Requirements
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-- A Garmin Connect account
-- Claude Desktop
+- [uv](https://docs.astral.sh/uv/)
+- Garmin Connect account
 
-## Installation
+### Setup
 
 ```bash
 git clone https://github.com/paulmona/GarminConnectMCP.git
@@ -37,12 +42,10 @@ cd GarminConnectMCP
 uv sync
 ```
 
-## Claude Desktop Configuration
+### Claude Desktop config
 
-Add the following to your `claude_desktop_config.json`:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -64,7 +67,64 @@ Add the following to your `claude_desktop_config.json`:
 }
 ```
 
-Use the full path to `uv` (find it with `which uv`). Quit and relaunch Claude Desktop — a hammer icon will appear in the chat bar confirming the 13 tools are loaded.
+Use the full path to `uv` (find it with `which uv`). Quit and relaunch Claude Desktop — a hammer icon confirms the 13 tools are loaded.
+
+---
+
+## Option B — Docker (SSE, remote-friendly)
+
+Best for running on a home server or NAS so Claude on any device (Desktop, mobile, web) can reach it.
+
+### Requirements
+
+- Docker and Docker Compose
+- Garmin Connect account
+
+### Setup
+
+```bash
+git clone https://github.com/paulmona/GarminConnectMCP.git
+cd GarminConnectMCP
+cp .env.example .env
+# Edit .env and fill in your Garmin credentials
+docker compose up -d
+```
+
+Or pull directly from Docker Hub (no clone needed):
+
+```bash
+GARMIN_EMAIL=your@email.com GARMIN_PASSWORD=yourpassword \
+  docker run -d -p 8000:8000 \
+  -e GARMIN_EMAIL -e GARMIN_PASSWORD -e MCP_MODE=sse \
+  -v garmin-session:/app/config/.session \
+  paulmona/garmin-mcp:latest
+```
+
+### Claude Desktop config
+
+```json
+{
+  "mcpServers": {
+    "garmin": {
+      "url": "http://localhost:8000/sse"
+    }
+  }
+}
+```
+
+Replace `localhost` with your server's IP or hostname if running remotely.
+
+### Environment variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GARMIN_EMAIL` | Yes | — | Garmin Connect email |
+| `GARMIN_PASSWORD` | Yes | — | Garmin Connect password |
+| `MCP_MODE` | No | `stdio` | Set to `sse` for Docker/remote |
+| `MCP_HOST` | No | `0.0.0.0` | SSE bind address |
+| `MCP_PORT` | No | `8000` | SSE port |
+
+---
 
 ## Project Structure
 
@@ -72,24 +132,25 @@ Use the full path to `uv` (find it with `which uv`). Quit and relaunch Claude De
 src/garmin_mcp/
 ├── server.py          # MCP server — 13 tool definitions
 ├── garmin_client.py   # Garmin auth with session caching and auto re-auth
-├── config.py          # Settings loader (reads GARMIN_EMAIL / GARMIN_PASSWORD)
-├── tools/
-│   ├── activities.py  # Activity tools
-│   ├── health.py      # HRV, sleep, body battery, resting HR tools
-│   ├── training.py    # Training status, race predictions, weekly summary, recovery snapshot
-│   └── body.py        # Weight trend and body composition tools
+├── config.py          # Settings loader (reads env vars)
+└── tools/
+    ├── activities.py  # Activity tools
+    ├── health.py      # HRV, sleep, body battery, resting HR tools
+    ├── training.py    # Training status, race predictions, weekly summary, recovery snapshot
+    └── body.py        # Weight trend and body composition tools
 
-config/                # Runtime data — gitignored
-└── .session/          # Garmin OAuth token cache (chmod 700)
+Dockerfile             # Production image (python3.13-bookworm-slim + uv)
+docker-compose.yml     # Compose config with session volume
 ```
 
 ## Security
 
-Credentials are passed via environment variables in the Claude Desktop config and are never stored on disk or committed to git. OAuth session tokens are cached locally in `config/.session/` with owner-only permissions. See [SECURITY.md](SECURITY.md) for the full security model.
+Credentials are passed via environment variables and never stored on disk or committed to git. OAuth session tokens are cached in `config/.session/` with owner-only permissions (or in a Docker volume). The SSE endpoint has no authentication — if exposing beyond localhost, place it behind a reverse proxy with authentication. See [SECURITY.md](SECURITY.md) for the full security model.
 
 ## Running Tests
 
 ```bash
+uv sync --extra dev
 uv run pytest
 ```
 
