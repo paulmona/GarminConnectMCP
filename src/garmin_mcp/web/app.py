@@ -153,7 +153,11 @@ async def status_page(request: Request):
 
 
 def start():
-    """Start the web config UI server."""
+    """Start the web config UI server.
+
+    Binds to 127.0.0.1 for local-only access. For Docker deployments,
+    change to 0.0.0.0 and place behind a reverse proxy.
+    """
     import uvicorn
 
     uvicorn.run(app, host="127.0.0.1", port=8585)

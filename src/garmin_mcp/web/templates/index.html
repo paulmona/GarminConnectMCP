@@ -29,6 +29,10 @@
     {# ── Credentials ── #}
     {% if page == "credentials" %}
     <h2>Garmin Credentials</h2>
+    <p class="text-muted" style="margin-bottom:1rem;font-size:0.85rem;">
+      Credentials are stored in plaintext in <code>config.json</code>.
+      Do not commit this file to version control.
+    </p>
     <form method="post" action="/credentials">
       <div class="form-group">
         <label for="email">Email</label>
