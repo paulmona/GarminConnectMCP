@@ -1,1 +1,1 @@
-"""Web configuration UI for GarminClaudeSync."""
+"""Web configuration UI for Garmin MCP Server."""

@@ -66,12 +66,9 @@ class GarminClient:
             logger.info("Authenticated with Garmin Connect")
             self._save_tokens(client, token_path)
             return client
-        except (
-            GarminConnectAuthenticationError,
-            GarminConnectConnectionError,
-        ):
+        except Exception:
             logger.warning(
-                "Initial auth failed, attempting fresh login"
+                "Cached token login failed, attempting fresh login"
             )
 
         # Retry with fresh credentials (no tokenstore)

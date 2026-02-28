@@ -313,17 +313,19 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
-gdrive = [
+google = [
     { name = "google-api-python-client" },
     { name = "google-auth" },
+    { name = "google-auth-httplib2" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.134.0" },
     { name = "garminconnect", specifier = ">=0.2.25" },
-    { name = "google-api-python-client", marker = "extra == 'gdrive'", specifier = ">=2.100.0" },
-    { name = "google-auth", marker = "extra == 'gdrive'", specifier = ">=2.25.0" },
+    { name = "google-api-python-client", marker = "extra == 'google'", specifier = ">=2.100.0" },
+    { name = "google-auth", marker = "extra == 'google'", specifier = ">=2.25.0" },
+    { name = "google-auth-httplib2", marker = "extra == 'google'", specifier = ">=0.2.0" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mcp", specifier = ">=1.0.0" },
@@ -332,7 +334,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.41.0" },
 ]
-provides-extras = ["dev", "gdrive"]
+provides-extras = ["dev", "google"]
 
 [[package]]
 name = "garminconnect"

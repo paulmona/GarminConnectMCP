@@ -1,4 +1,4 @@
-"""FastAPI web application for GarminClaudeSync configuration.
+"""FastAPI web application for Garmin MCP Server configuration.
 
 SECURITY:
 - CSRF protection via per-session tokens on all POST forms.
@@ -22,7 +22,7 @@ WEB_DIR = Path(__file__).parent
 TEMPLATES_DIR = WEB_DIR / "templates"
 STATIC_DIR = WEB_DIR / "static"
 
-app = FastAPI(title="GarminClaudeSync Config", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Garmin MCP Server Config", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 

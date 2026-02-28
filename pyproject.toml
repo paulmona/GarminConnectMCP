@@ -26,6 +26,7 @@ google = [
 
 [project.scripts]
 garmin-mcp = "garmin_mcp.server:main"
+garmin-web = "garmin_mcp.web.app:start"
 
 [build-system]
 requires = ["hatchling"]

@@ -7,6 +7,7 @@ import pytest
 from garminconnect import GarminConnectAuthenticationError
 
 from garmin_mcp.config import Settings
+from garmin_mcp.credentials import CredentialsNotConfiguredError
 from garmin_mcp.garmin_client import GarminClient
 
 
@@ -202,6 +203,23 @@ class TestCallWithRetry:
             gc.call_with_retry(fn)
 
         assert fn.call_count == 2
+
+    @patch("garmin_mcp.garmin_client.Garmin")
+    def test_credentials_not_configured_not_retried(self, MockGarmin, tmp_path):
+        settings = _make_settings(tmp_path)
+        mock_instance = MockGarmin.return_value
+        mock_instance.garth = MagicMock()
+
+        gc = GarminClient(settings=settings)
+        fn = MagicMock(
+            side_effect=CredentialsNotConfiguredError("not configured")
+        )
+
+        with pytest.raises(CredentialsNotConfiguredError):
+            gc.call_with_retry(fn)
+
+        # Should NOT retry - only called once
+        fn.assert_called_once()
 
 
 class TestSaveTokens:
