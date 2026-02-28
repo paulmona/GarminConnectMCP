@@ -307,10 +307,10 @@ class _SimpleOAuthProvider:
     """
 
     def __init__(self, api_key: str) -> None:
-        from mcp.server.auth.provider import AccessToken, AuthorizationCode, RefreshToken
         self._api_key = api_key
         self._clients: dict = {}
         self._auth_codes: dict = {}
+        self._access_tokens: dict = {}  # token → scopes
         self._refresh_tokens: dict = {}
 
     async def get_client(self, client_id: str):
@@ -340,19 +340,32 @@ class _SimpleOAuthProvider:
     async def exchange_authorization_code(self, client, authorization_code):
         from mcp.server.auth.provider import OAuthToken, RefreshToken
         del self._auth_codes[authorization_code.code]
+        access = secrets.token_urlsafe(32)
         refresh = secrets.token_urlsafe(32)
+        self._access_tokens[access] = authorization_code.scopes
         self._refresh_tokens[refresh] = RefreshToken(
             token=refresh, client_id=client.client_id, scopes=authorization_code.scopes
         )
-        return OAuthToken(access_token=self._api_key, token_type="Bearer", refresh_token=refresh)
+        return OAuthToken(
+            access_token=access,
+            token_type="Bearer",
+            scope=" ".join(authorization_code.scopes),
+            refresh_token=refresh,
+        )
 
     async def load_access_token(self, token: str):
         from mcp.server.auth.provider import AccessToken
-        match = token == self._api_key
-        _logger.info("load_access_token: match=%s token_len=%d key_len=%d", match, len(token), len(self._api_key))
-        if not match:
-            return None
-        return AccessToken(token=token, client_id="claude", scopes=[])
+        # Accept OAuth-issued tokens (fresh random tokens from exchange_authorization_code)
+        scopes = self._access_tokens.get(token)
+        if scopes is not None:
+            _logger.info("load_access_token: OAuth token matched, scopes=%s", scopes)
+            return AccessToken(token=token, client_id="oauth", scopes=scopes)
+        # Also accept the raw API key for direct bearer token use (Claude Desktop etc.)
+        if token == self._api_key:
+            _logger.info("load_access_token: direct API key matched")
+            return AccessToken(token=token, client_id="direct", scopes=["claudeai"])
+        _logger.info("load_access_token: no match for token_len=%d", len(token))
+        return None
 
     async def load_refresh_token(self, client, refresh_token: str):
         t = self._refresh_tokens.get(refresh_token)
@@ -361,16 +374,25 @@ class _SimpleOAuthProvider:
     async def exchange_refresh_token(self, client, refresh_token, scopes):
         from mcp.server.auth.provider import OAuthToken, RefreshToken
         del self._refresh_tokens[refresh_token.token]
-        new_token = secrets.token_urlsafe(32)
-        self._refresh_tokens[new_token] = RefreshToken(
-            token=new_token, client_id=client.client_id, scopes=refresh_token.scopes
+        access = secrets.token_urlsafe(32)
+        new_refresh = secrets.token_urlsafe(32)
+        self._access_tokens[access] = refresh_token.scopes
+        self._refresh_tokens[new_refresh] = RefreshToken(
+            token=new_refresh, client_id=client.client_id, scopes=refresh_token.scopes
         )
-        return OAuthToken(access_token=self._api_key, token_type="Bearer", refresh_token=new_token)
+        return OAuthToken(
+            access_token=access,
+            token_type="Bearer",
+            scope=" ".join(refresh_token.scopes),
+            refresh_token=new_refresh,
+        )
 
     async def revoke_token(self, token) -> None:
         from mcp.server.auth.provider import RefreshToken
         if isinstance(token, RefreshToken):
             self._refresh_tokens.pop(token.token, None)
+        else:
+            self._access_tokens.pop(getattr(token, "token", str(token)), None)
 
     async def verify_token(self, token: str):
         return await self.load_access_token(token)
