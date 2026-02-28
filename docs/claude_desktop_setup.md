@@ -5,15 +5,35 @@
 1. Clone the repo and install dependencies:
    ```bash
    cd GarminClaudeSync
-   cp .env.example .env
-   # Fill in GARMIN_EMAIL and GARMIN_PASSWORD in .env
    uv sync
    ```
 
-2. Verify the server starts:
+2. Complete first-time setup (see below).
+
+3. Verify the server starts:
    ```bash
    uv run garmin-mcp
    ```
+
+## First-Time Setup
+
+Before using the MCP server, you need to configure your Garmin credentials:
+
+1. Start the web UI:
+   ```bash
+   uv run garmin-web
+   ```
+
+2. Visit [http://localhost:8585](http://localhost:8585) in your browser.
+
+3. Enter your Garmin Connect email and password on the setup screen. Your
+   credentials are verified against Garmin's servers before being saved.
+
+4. Once credentials are saved, configure Claude Desktop (see below).
+
+Credentials are stored locally in `config/garmin_auth.json` with owner-only
+file permissions. This file is gitignored and should never be committed or
+placed in the Claude Desktop config file.
 
 ## Claude Desktop Configuration
 
@@ -32,11 +52,7 @@ Add the following to your `claude_desktop_config.json`:
         "--directory",
         "/absolute/path/to/GarminClaudeSync",
         "garmin-mcp"
-      ],
-      "env": {
-        "GARMIN_EMAIL": "your-email@example.com",
-        "GARMIN_PASSWORD": "your-garmin-password"
-      }
+      ]
     }
   }
 }
@@ -66,3 +82,4 @@ Once connected, Claude will have access to these tools:
 - **get_training_status** - Training status, VO2 max, readiness score
 - **get_race_predictions** - Predicted race finish times
 - **get_weekly_summary** - Composite weekly training summary
+- **get_recovery_snapshot** - All key recovery metrics in one call
