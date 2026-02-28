@@ -19,7 +19,7 @@ class Settings:
         email = os.environ.get("GARMIN_EMAIL", "")
         password = os.environ.get("GARMIN_PASSWORD", "")
         session_dir = Path(
-            os.environ.get("GARMIN_SESSION_DIR", ".session")
+            os.environ.get("GARMIN_SESSION_DIR", "config/.session")
         ).resolve()
         if not email or not password:
             raise ValueError(

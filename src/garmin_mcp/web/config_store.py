@@ -10,7 +10,7 @@ import stat
 from pathlib import Path
 from typing import Any
 
-DEFAULT_CONFIG_PATH = Path("config.json")
+DEFAULT_CONFIG_PATH = Path("config/config.json")
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "hr_zones": [

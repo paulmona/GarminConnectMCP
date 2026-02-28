@@ -2,8 +2,9 @@
 .env
 .env.*
 !.env.example
-.session/
-config.json
+
+# Runtime data directory
+config/
 
 # Python
 __pycache__/
