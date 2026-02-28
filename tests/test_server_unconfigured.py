@@ -3,7 +3,7 @@
 import json
 from unittest.mock import patch
 
-from garmin_mcp.credentials import CredentialsNotConfiguredError
+from garmin_mcp.config import CredentialsNotConfiguredError
 from garmin_mcp.server import NOT_CONFIGURED_MSG
 
 
@@ -24,7 +24,7 @@ class TestMcpToolsUnconfigured:
 
         parsed = json.loads(result)
         assert parsed["error"] == "not_configured"
-        assert "localhost:8585/setup" in parsed["message"]
+        assert "GARMIN_EMAIL" in parsed["message"]
 
     @patch("garmin_mcp.server._get_client")
     def test_get_training_status_returns_not_configured(self, mock_get_client):
@@ -36,7 +36,7 @@ class TestMcpToolsUnconfigured:
 
         parsed = json.loads(result)
         assert parsed["error"] == "not_configured"
-        assert "localhost:8585/setup" in parsed["message"]
+        assert "GARMIN_EMAIL" in parsed["message"]
 
     @patch("garmin_mcp.server._get_client")
     def test_get_recovery_snapshot_returns_not_configured(self, mock_get_client):

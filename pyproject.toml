@@ -1,16 +1,12 @@
 [project]
 name = "garmin-mcp"
-version = "0.1.0"
-description = "MCP server exposing Garmin Connect data for Hyrox training analysis"
+version = "0.2.0"
+description = "MCP server exposing Garmin Connect data for training analysis"
 requires-python = ">=3.11"
 dependencies = [
     "garminconnect>=0.2.25",
     "mcp>=1.0.0",
-    "python-dotenv>=1.0.0",
     "httpx>=0.27.0",
-    "fastapi>=0.134.0",
-    "jinja2>=3.1.6",
-    "uvicorn[standard]>=0.41.0",
 ]
 
 [project.optional-dependencies]
@@ -18,15 +14,9 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
 ]
-google = [
-    "google-api-python-client>=2.100.0",
-    "google-auth>=2.25.0",
-    "google-auth-httplib2>=0.2.0",
-]
 
 [project.scripts]
 garmin-mcp = "garmin_mcp.server:main"
-garmin-web = "garmin_mcp.web.app:start"
 
 [build-system]
 requires = ["hatchling"]

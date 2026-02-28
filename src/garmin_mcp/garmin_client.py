@@ -12,8 +12,7 @@ from garminconnect import (
     GarminConnectConnectionError,
 )
 
-from .config import Settings
-from .credentials import CredentialsNotConfiguredError
+from .config import CredentialsNotConfiguredError, Settings
 
 T = TypeVar("T")
 

@@ -1,1 +1,1 @@
-"""Garmin MCP Server - MCP server for Garmin Connect data."""
+"""Garmin MCP Server — MCP server exposing Garmin Connect data to Claude."""

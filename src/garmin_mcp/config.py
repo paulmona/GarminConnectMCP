@@ -1,11 +1,12 @@
-"""Configuration loaded from credentials file."""
+"""Configuration loaded from environment variables."""
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import credentials
-from .credentials import CredentialsNotConfiguredError
+
+class CredentialsNotConfiguredError(Exception):
+    """Raised when Garmin credentials have not been configured yet."""
 
 
 @dataclass(frozen=True)
@@ -16,17 +17,17 @@ class Settings:
 
     @classmethod
     def load(cls) -> "Settings":
-        creds = credentials.load()
-        if creds is None:
+        email = os.environ.get("GARMIN_EMAIL", "").strip()
+        password = os.environ.get("GARMIN_PASSWORD", "").strip()
+        if not email or not password:
             raise CredentialsNotConfiguredError(
-                "Garmin credentials not configured. "
-                "Run the web UI to complete setup: uv run garmin-web"
+                "GARMIN_EMAIL and GARMIN_PASSWORD environment variables must be set."
             )
         session_dir = Path(
             os.environ.get("GARMIN_SESSION_DIR", "config/.session")
         ).resolve()
         return cls(
-            garmin_email=creds["email"],
-            garmin_password=creds["password"],
+            garmin_email=email,
+            garmin_password=password,
             session_dir=session_dir,
         )

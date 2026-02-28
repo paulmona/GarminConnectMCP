@@ -1,57 +1,60 @@
 """Tests for garmin_mcp.config.Settings."""
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from garmin_mcp.config import Settings
-from garmin_mcp.credentials import CredentialsNotConfiguredError
+from garmin_mcp.config import CredentialsNotConfiguredError, Settings
 
 
 class TestSettingsLoad:
     """Tests for Settings.load()."""
 
-    @patch("garmin_mcp.config.credentials.load")
-    def test_loads_credentials_from_file(self, mock_creds_load):
-        mock_creds_load.return_value = {
-            "email": "user@example.com",
-            "password": "secret",
-        }
+    def test_loads_credentials_from_env(self, monkeypatch):
+        monkeypatch.setenv("GARMIN_EMAIL", "user@example.com")
+        monkeypatch.setenv("GARMIN_PASSWORD", "secret")
         settings = Settings.load()
         assert settings.garmin_email == "user@example.com"
         assert settings.garmin_password == "secret"
 
-    @patch("garmin_mcp.config.credentials.load")
-    def test_default_session_dir(self, mock_creds_load):
-        mock_creds_load.return_value = {
-            "email": "user@example.com",
-            "password": "secret",
-        }
+    def test_default_session_dir(self, monkeypatch):
+        monkeypatch.setenv("GARMIN_EMAIL", "user@example.com")
+        monkeypatch.setenv("GARMIN_PASSWORD", "secret")
+        monkeypatch.delenv("GARMIN_SESSION_DIR", raising=False)
         settings = Settings.load()
         assert settings.session_dir == Path("config/.session").resolve()
 
-    @patch.dict(
-        "os.environ",
-        {"GARMIN_SESSION_DIR": "/tmp/garmin_sessions"},
-        clear=False,
-    )
-    @patch("garmin_mcp.config.credentials.load")
-    def test_custom_session_dir(self, mock_creds_load):
-        mock_creds_load.return_value = {
-            "email": "user@example.com",
-            "password": "secret",
-        }
+    def test_custom_session_dir(self, monkeypatch):
+        monkeypatch.setenv("GARMIN_EMAIL", "user@example.com")
+        monkeypatch.setenv("GARMIN_PASSWORD", "secret")
+        monkeypatch.setenv("GARMIN_SESSION_DIR", "/tmp/garmin_sessions")
         settings = Settings.load()
         assert settings.session_dir == Path("/tmp/garmin_sessions").resolve()
 
-    @patch("garmin_mcp.config.credentials.load", return_value=None)
-    def test_raises_when_credentials_missing(self, _mock_creds_load):
-        with pytest.raises(
-            CredentialsNotConfiguredError,
-            match="Garmin credentials not configured",
-        ):
+    def test_raises_when_email_missing(self, monkeypatch):
+        monkeypatch.delenv("GARMIN_EMAIL", raising=False)
+        monkeypatch.setenv("GARMIN_PASSWORD", "secret")
+        with pytest.raises(CredentialsNotConfiguredError):
             Settings.load()
+
+    def test_raises_when_password_missing(self, monkeypatch):
+        monkeypatch.setenv("GARMIN_EMAIL", "user@example.com")
+        monkeypatch.delenv("GARMIN_PASSWORD", raising=False)
+        with pytest.raises(CredentialsNotConfiguredError):
+            Settings.load()
+
+    def test_raises_when_both_missing(self, monkeypatch):
+        monkeypatch.delenv("GARMIN_EMAIL", raising=False)
+        monkeypatch.delenv("GARMIN_PASSWORD", raising=False)
+        with pytest.raises(CredentialsNotConfiguredError):
+            Settings.load()
+
+    def test_strips_whitespace(self, monkeypatch):
+        monkeypatch.setenv("GARMIN_EMAIL", "  user@example.com  ")
+        monkeypatch.setenv("GARMIN_PASSWORD", "  secret  ")
+        settings = Settings.load()
+        assert settings.garmin_email == "user@example.com"
+        assert settings.garmin_password == "secret"
 
     def test_settings_is_frozen(self):
         settings = Settings(

@@ -7,7 +7,7 @@ import pytest
 from garminconnect import GarminConnectAuthenticationError
 
 from garmin_mcp.config import Settings
-from garmin_mcp.credentials import CredentialsNotConfiguredError
+from garmin_mcp.config import CredentialsNotConfiguredError
 from garmin_mcp.garmin_client import GarminClient
 
 

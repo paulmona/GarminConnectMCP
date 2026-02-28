@@ -8,12 +8,12 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .credentials import CredentialsNotConfiguredError
+from .config import CredentialsNotConfiguredError
 from .garmin_client import GarminClient
 
 NOT_CONFIGURED_MSG = json.dumps({
     "error": "not_configured",
-    "message": "Garmin credentials not configured. Visit http://localhost:8585/setup to complete setup.",
+    "message": "Garmin credentials not configured. Set GARMIN_EMAIL and GARMIN_PASSWORD environment variables.",
 })
 
 mcp = FastMCP("garmin-mcp")
