@@ -403,10 +403,9 @@ class _SimpleOAuthProvider:
 class _AcceptHeaderMiddleware:
     """Normalize Accept headers before requests reach the MCP transport.
 
-    The MCP streamable-http transport requires both application/json and
-    text/event-stream in the Accept header. Some clients (e.g. claude.ai)
-    send Accept: */* which the SDK doesn't recognise, causing 406 responses.
-    This middleware replaces wildcards with the explicit types the SDK expects.
+    The SDK requires both application/json and text/event-stream in Accept.
+    Some clients only send one of them; this middleware ensures both are
+    present so the SDK always accepts the request.
     """
 
     _REQUIRED = b"application/json, text/event-stream"
@@ -426,6 +425,329 @@ class _AcceptHeaderMiddleware:
                     headers[idx] = (b"accept", self._REQUIRED)
             scope = {**scope, "headers": headers}
         await self._app(scope, receive, send)
+
+
+class _RequestLogMiddleware:
+    """Log every incoming HTTP request and response status for debugging OAuth flows."""
+
+    def __init__(self, app) -> None:
+        self._app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http":
+            method = scope.get("method", "")
+            path = scope.get("path", "")
+            qs = scope.get("query_string", b"").decode()
+            headers = dict(scope.get("headers", []))
+            auth_raw = headers.get(b"authorization", b"").decode("utf-8", errors="replace")
+            if auth_raw:
+                parts = auth_raw.split(" ", 1)
+                auth_preview = f"{parts[0]} {parts[1][:10]}..." if len(parts) == 2 else auth_raw[:15]
+            else:
+                auth_preview = "(none)"
+            origin = headers.get(b"origin", b"").decode("utf-8", errors="replace")
+            ua = headers.get(b"user-agent", b"").decode("utf-8", errors="replace")[:60]
+            accept = headers.get(b"accept", b"").decode("utf-8", errors="replace")
+            _logger.info(
+                "REQ  %s %s%s  auth=%s  accept=%s  origin=%s  ua=%s",
+                method, path, f"?{qs}" if qs else "",
+                auth_preview, accept or "(none)", origin or "(none)", ua or "(none)",
+            )
+
+            async def send_with_log(message):
+                if message["type"] == "http.response.start":
+                    status = message.get("status", 0)
+                    resp_hdrs = dict(message.get("headers", []))
+                    www_auth = resp_hdrs.get(b"www-authenticate", b"").decode("utf-8", errors="replace")
+                    ct = resp_hdrs.get(b"content-type", b"").decode("utf-8", errors="replace")
+                    if www_auth:
+                        _logger.info(
+                            "RSP  %s %s  status=%d  www-auth=%s",
+                            method, path, status, www_auth[:300],
+                        )
+                    else:
+                        _logger.info(
+                            "RSP  %s %s  status=%d  ct=%s",
+                            method, path, status, ct,
+                        )
+                await send(message)
+
+            await self._app(scope, receive, send_with_log)
+        else:
+            await self._app(scope, receive, send)
+
+
+class _CORSMiddleware:
+    """Add CORS headers so claude.ai (browser) can reach the MCP endpoint.
+
+    Handles OPTIONS preflight requests and injects CORS headers into every
+    response.  Echoes back the exact Origin if it's a known Claude origin so
+    that Access-Control-Allow-Credentials can be true.  Unknown origins get
+    a wildcard (no credentials).
+    """
+
+    _ALLOWED_ORIGINS = {b"https://claude.ai", b"https://claude.com"}
+    _METHODS = b"GET, POST, DELETE, OPTIONS"
+    _ALLOW_HEADERS_DEFAULT = b"Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID"
+    _EXPOSE_HEADERS = b"Mcp-Session-Id, WWW-Authenticate"
+    _MAX_AGE = b"86400"
+
+    def __init__(self, app) -> None:
+        self._app = app
+
+    def _origin_header(self, req_headers: dict) -> tuple[bytes, bytes | None]:
+        """Return (allow-origin-value, allow-credentials-value-or-None)."""
+        origin = req_headers.get(b"origin", b"")
+        if origin in self._ALLOWED_ORIGINS:
+            return origin, b"true"
+        return b"*", None
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        req_headers = dict(scope.get("headers", []))
+
+        if scope.get("method") == "OPTIONS":
+            # Echo back whatever headers the client asks for — prevents any
+            # missing header from blocking the subsequent actual request.
+            requested = req_headers.get(b"access-control-request-headers", self._ALLOW_HEADERS_DEFAULT)
+            allow_origin, allow_creds = self._origin_header(req_headers)
+            response_headers = [
+                (b"access-control-allow-origin", allow_origin),
+                (b"access-control-allow-methods", self._METHODS),
+                (b"access-control-allow-headers", requested),
+                (b"access-control-expose-headers", self._EXPOSE_HEADERS),
+                (b"access-control-max-age", self._MAX_AGE),
+                (b"content-length", b"0"),
+            ]
+            if allow_creds:
+                response_headers.insert(1, (b"access-control-allow-credentials", allow_creds))
+            await send({"type": "http.response.start", "status": 204, "headers": response_headers})
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
+            return
+
+        allow_origin, allow_creds = self._origin_header(req_headers)
+        cors_headers = [(b"access-control-allow-origin", allow_origin)]
+        if allow_creds:
+            cors_headers.append((b"access-control-allow-credentials", allow_creds))
+        cors_headers.append((b"access-control-expose-headers", self._EXPOSE_HEADERS))
+
+        async def send_with_cors(message):
+            if message["type"] == "http.response.start":
+                message = {**message, "headers": list(message.get("headers", [])) + cors_headers}
+            await send(message)
+
+        await self._app(scope, receive, send_with_cors)
+
+
+class _OAuthDiscoveryFixMiddleware:
+    """Fix OAuth discovery metadata that the MCP SDK emits with Pydantic quirks.
+
+    Problems fixed:
+    1. Pydantic's AnyHttpUrl adds a trailing slash to bare domain URLs, so
+       `issuer` becomes "https://example.com/" instead of "https://example.com".
+       Claude.ai requires an exact issuer match, so the slash must be removed.
+    2. `token_endpoint_auth_methods_supported` is missing "none", which is
+       required for PKCE public clients (RFC 7636 / RFC 9126).
+    3. Same trailing-slash issue in `authorization_servers` and `resource`
+       inside the Protected Resource Metadata document.
+    """
+
+    _AS_PATH = "/.well-known/oauth-authorization-server"
+    _PRM_PREFIX = "/.well-known/oauth-protected-resource"
+
+    def __init__(self, app) -> None:
+        self._app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if path != self._AS_PATH and not path.startswith(self._PRM_PREFIX):
+            await self._app(scope, receive, send)
+            return
+
+        # Capture the full response body before forwarding
+        captured_start = None
+        body_chunks: list[bytes] = []
+
+        async def capture(message):
+            nonlocal captured_start
+            if message["type"] == "http.response.start":
+                captured_start = message
+            elif message["type"] == "http.response.body":
+                body_chunks.append(message.get("body", b""))
+                if not message.get("more_body", False):
+                    body = b"".join(body_chunks)
+                    body = self._patch(path, body)
+                    # Rebuild content-length
+                    hdrs = [(k, v) for k, v in (captured_start or {}).get("headers", [])
+                            if k.lower() != b"content-length"]
+                    hdrs.append((b"content-length", str(len(body)).encode()))
+                    await send({**(captured_start or {}), "headers": hdrs})
+                    await send({"type": "http.response.body", "body": body, "more_body": False})
+
+        await self._app(scope, receive, capture)
+
+    @staticmethod
+    def _patch(path: str, body: bytes) -> bytes:
+        try:
+            data = json.loads(body)
+        except Exception:
+            return body
+
+        if path == "/.well-known/oauth-authorization-server":
+            # Strip trailing slash from issuer
+            if "issuer" in data:
+                data["issuer"] = str(data["issuer"]).rstrip("/")
+            # Ensure public-client auth methods are advertised
+            methods: list = list(data.get("token_endpoint_auth_methods_supported", []))
+            for m in ("client_secret_post", "none"):
+                if m not in methods:
+                    methods.append(m)
+            data["token_endpoint_auth_methods_supported"] = methods
+        else:
+            # PRM: strip trailing slash from resource URL and each authorization server URL
+            if "resource" in data:
+                data["resource"] = str(data["resource"]).rstrip("/")
+            if "authorization_servers" in data:
+                data["authorization_servers"] = [
+                    str(s).rstrip("/") for s in data["authorization_servers"]
+                ]
+
+        _logger.info("DISCOVERY %s → %s", path, json.dumps(data))
+        return json.dumps(data).encode()
+
+
+class _TokenEndpointMiddleware:
+    """Intercept POST /token responses: log body and add RFC 8707 resource field.
+
+    RFC 8707 §3.2 says the resource parameter MUST be returned in the token
+    response when it was included in the authorization request.  The MCP SDK's
+    OAuthToken model has no resource field so we inject it here.
+
+    token_type is left as-is ("Bearer") — that is the correct registered value.
+    """
+
+    def __init__(self, app, resource_url: str) -> None:
+        self._app = app
+        self._resource_url = resource_url
+
+    async def __call__(self, scope, receive, send) -> None:
+        if (scope["type"] != "http"
+                or scope.get("path") != "/token"
+                or scope.get("method") != "POST"):
+            await self._app(scope, receive, send)
+            return
+
+        # Log request body so we can see what the client sends (resource param, etc.)
+        req_chunks: list[bytes] = []
+
+        async def logging_receive():
+            message = await receive()
+            if message["type"] == "http.request":
+                req_chunks.append(message.get("body", b""))
+                if not message.get("more_body", False):
+                    req_body = b"".join(req_chunks)
+                    _logger.info("TOKEN REQUEST body: %s",
+                                 req_body.decode("utf-8", errors="replace")[:500])
+            return message
+
+        captured_start = None
+        body_chunks: list[bytes] = []
+
+        async def capture(message):
+            nonlocal captured_start
+            if message["type"] == "http.response.start":
+                captured_start = message
+            elif message["type"] == "http.response.body":
+                body_chunks.append(message.get("body", b""))
+                if not message.get("more_body", False):
+                    body = b"".join(body_chunks)
+                    body = self._add_resource_and_log(body)
+                    hdrs = [(k, v) for k, v in (captured_start or {}).get("headers", [])
+                            if k.lower() != b"content-length"]
+                    hdrs.append((b"content-length", str(len(body)).encode()))
+                    await send({**(captured_start or {}), "headers": hdrs})
+                    await send({"type": "http.response.body", "body": body, "more_body": False})
+
+        await self._app(scope, logging_receive, capture)
+
+    def _add_resource_and_log(self, body: bytes) -> bytes:
+        try:
+            data = json.loads(body)
+        except Exception:
+            _logger.info("TOKEN RESPONSE (non-JSON): %s", body[:300])
+            return body
+
+        # RFC 8707 §3.2: include resource when it was in the request
+        if "resource" not in data:
+            data["resource"] = self._resource_url
+
+        result = json.dumps(data).encode()
+        _logger.info("TOKEN RESPONSE: %s", result.decode()[:500])
+        return result
+
+
+class _Fix401Middleware:
+    """Fix WWW-Authenticate on 401 responses for unauthenticated (no-token) requests.
+
+    RFC 6750 §3: when the request has NO Authorization header, the server SHOULD
+    NOT include an error code in WWW-Authenticate.  The MCP SDK always emits
+    ``error="invalid_token"`` regardless, which may cause clients (e.g. claude.ai)
+    to treat the endpoint as permanently rejecting tokens rather than prompting
+    for auth.
+
+    For no-token requests we strip error= / error_description= and add realm=.
+    For requests that DO carry a (bad) token we leave the header unchanged.
+    """
+
+    _REALM = b'realm="garmin-mcp"'
+    _RE_ERROR = re.compile(r',?\s*error="[^"]*"')
+    _RE_ERROR_DESC = re.compile(r',?\s*error_description="[^"]*"')
+
+    def __init__(self, app) -> None:
+        self._app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        has_auth = bool(headers.get(b"authorization", b"").strip())
+
+        if has_auth:
+            await self._app(scope, receive, send)
+            return
+
+        async def send_with_fix(message):
+            if message["type"] == "http.response.start" and message.get("status") == 401:
+                hdrs = []
+                for k, v in message.get("headers", []):
+                    if k.lower() == b"www-authenticate":
+                        v_str = v.decode("utf-8", errors="replace")
+                        v_str = self._RE_ERROR.sub("", v_str)
+                        v_str = self._RE_ERROR_DESC.sub("", v_str)
+                        # Clean up any stray "Bearer ," left after removals
+                        v_str = re.sub(r'(?i)(bearer)\s*,\s*', r'\1 ', v_str).strip()
+                        # Prepend realm= for RFC compliance
+                        if v_str.lower().startswith("bearer"):
+                            rest = v_str[len("bearer"):].strip()
+                            v_str = "Bearer " + self._REALM.decode() + (
+                                ", " + rest if rest else ""
+                            )
+                        hdrs.append((k, v_str.encode()))
+                    else:
+                        hdrs.append((k, v))
+                message = {**message, "headers": hdrs}
+            await send(message)
+
+        await self._app(scope, receive, send_with_fix)
 
 
 class _BearerAuthMiddleware:
@@ -499,7 +821,18 @@ def main():
             )
 
             async def _run() -> None:
-                app = _AcceptHeaderMiddleware(mcp.streamable_http_app())
+                app = _RequestLogMiddleware(
+                    _CORSMiddleware(
+                        _OAuthDiscoveryFixMiddleware(
+                            _TokenEndpointMiddleware(
+                                _AcceptHeaderMiddleware(
+                                    _Fix401Middleware(mcp.streamable_http_app())
+                                ),
+                                resource_url=server_url + "/mcp",
+                            )
+                        )
+                    )
+                )
                 config = uvicorn.Config(
                     app,
                     host=mcp.settings.host,
@@ -519,7 +852,11 @@ def main():
             )
 
             async def _run_open() -> None:
-                app = _AcceptHeaderMiddleware(mcp.streamable_http_app())
+                app = _RequestLogMiddleware(
+                    _CORSMiddleware(
+                        _AcceptHeaderMiddleware(mcp.streamable_http_app())
+                    )
+                )
                 config = uvicorn.Config(
                     app,
                     host=mcp.settings.host,
