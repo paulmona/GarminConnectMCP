@@ -34,6 +34,7 @@
       Do not commit <code>.env</code> to version control.
     </p>
     <form method="post" action="/credentials">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group">
         <label for="email">Email</label>
         <input type="email" id="email" name="email"
@@ -55,6 +56,7 @@
     {% if page == "hr_zones" %}
     <h2>Heart Rate Zones</h2>
     <form method="post" action="/hr-zones">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <table class="zone-table">
         <thead>
           <tr>
@@ -90,6 +92,7 @@
     {% if page == "sync" %}
     <h2>Sync Schedule</h2>
     <form method="post" action="/sync">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group">
         <label for="interval_minutes">Sync interval (minutes)</label>
         <select id="interval_minutes" name="interval_minutes">
@@ -112,6 +115,7 @@
     {% if page == "export" %}
     <h2>Data Export</h2>
     <form method="post" action="/export">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       {% set labels = {
         "activities": "Activities",
         "hrv": "HRV",

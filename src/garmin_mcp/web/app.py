@@ -124,98 +124,62 @@ async def save_credentials(
 
 @app.get("/hr-zones", response_class=HTMLResponse)
 async def hr_zones_page(request: Request):
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config, "page": "hr_zones"}
-    )
+    return _make_response(request, "hr_zones")
 
 
 @app.post("/hr-zones")
 async def save_hr_zones(request: Request):
+    await _validate_csrf(request)
     form = await request.form()
     config = load_config()
     zones = []
     for i in range(5):
-        zones.append(
-            {
-                "name": form.get(f"zone_{i}_name", f"Z{i + 1}"),
-                "min_bpm": int(form.get(f"zone_{i}_min", 0)),
-                "max_bpm": int(form.get(f"zone_{i}_max", 0)),
-            }
-        )
+        name = str(form.get(f"zone_{i}_name", f"Z{i + 1}"))[:10]
+        min_bpm = max(0, min(250, int(form.get(f"zone_{i}_min", 0))))
+        max_bpm = max(0, min(250, int(form.get(f"zone_{i}_max", 0))))
+        zones.append({"name": name, "min_bpm": min_bpm, "max_bpm": max_bpm})
     config["hr_zones"] = zones
     save_config(config)
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "config": config,
-            "page": "hr_zones",
-            "flash": "HR zones saved.",
-        },
-    )
+    return _make_response(request, "hr_zones", {"flash": "HR zones saved."})
 
 
 @app.get("/sync", response_class=HTMLResponse)
 async def sync_page(request: Request):
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config, "page": "sync"}
-    )
+    return _make_response(request, "sync")
 
 
 @app.post("/sync")
-async def save_sync(
-    request: Request,
-    interval_minutes: int = Form(60),
-):
+async def save_sync(request: Request, interval_minutes: int = Form(60)):
+    await _validate_csrf(request)
+    allowed = {15, 30, 60, 120, 360, 720, 1440}
+    if interval_minutes not in allowed:
+        interval_minutes = 60
     config = load_config()
     config["sync_schedule"]["interval_minutes"] = interval_minutes
     save_config(config)
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "config": config,
-            "page": "sync",
-            "flash": "Sync schedule saved.",
-        },
-    )
+    return _make_response(request, "sync", {"flash": "Sync schedule saved."})
 
 
 @app.get("/export", response_class=HTMLResponse)
 async def export_page(request: Request):
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config, "page": "export"}
-    )
+    return _make_response(request, "export")
 
 
 @app.post("/export")
 async def save_export(request: Request):
+    await _validate_csrf(request)
     form = await request.form()
     config = load_config()
     data_types = ["activities", "hrv", "sleep", "body_battery", "training_status"]
     for dtype in data_types:
         config["data_export"][dtype] = dtype in form
     save_config(config)
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "config": config,
-            "page": "export",
-            "flash": "Export settings saved.",
-        },
-    )
+    return _make_response(request, "export", {"flash": "Export settings saved."})
 
 
 @app.get("/status", response_class=HTMLResponse)
 async def status_page(request: Request):
-    config = load_config()
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config, "page": "status"}
-    )
+    return _make_response(request, "status")
 
 
 def start():
