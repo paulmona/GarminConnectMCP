@@ -24,6 +24,7 @@ Garmin credentials are passed **exclusively via environment variables** (`GARMIN
 Garmin OAuth tokens (managed by the `garth` library) are cached on disk to avoid re-authentication on every server restart.
 
 - **Location**: `config/.session/` (configurable via `GARMIN_SESSION_DIR` env var); mounted as a named Docker volume in the container
+- **Non-root container**: The Docker image runs as a dedicated `mcp` user (UID 1000), not root. This makes the `0700` directory permissions meaningful — only the `mcp` user can read session tokens, not other processes or containers sharing the host
 - **Directory permissions**: `0700` (owner-only rwx), enforced by `os.chmod()` in `garmin_client.py` every time `_authenticate()` runs
 - **TTL**: Garmin tokens typically expire after ~24 hours. The server handles this via `call_with_retry()`, which catches `GarminConnectAuthenticationError`, invalidates the cached client, and re-authenticates once before retrying the failed call
 - **Persistence failures**: If `garth.dump()` fails, a warning is logged but the server continues operating. The next restart will trigger a full re-authentication
