@@ -9,6 +9,8 @@ from garmin_mcp.tools.training import (
     get_lactate_threshold,
     get_max_metrics,
     get_morning_readiness,
+    get_personal_records,
+    get_progress_summary,
     get_race_predictions,
     get_recovery_snapshot,
     get_training_status,
@@ -642,3 +644,94 @@ class TestGetLactateThreshold:
         result = get_lactate_threshold(api)
 
         assert result["pace_min_per_km"] == "0:05:00"
+
+
+# --- get_personal_records ---
+
+class TestGetPersonalRecords:
+
+    def test_returns_personal_records(self):
+        api = MagicMock()
+        api.get_personal_record.return_value = [
+            {
+                "typeKey": "running",
+                "personalRecordType": "FASTEST_5K",
+                "value": 1200.0,
+                "activityId": "12345",
+                "activityName": "Morning Run",
+                "prStartTimeGMT": "2025-01-10T08:00:00",
+            },
+            {
+                "typeKey": "running",
+                "personalRecordType": "LONGEST_RUN",
+                "value": 42195.0,
+                "activityId": "67890",
+                "activityName": "Marathon",
+                "calendarDate": "2024-11-03",
+            },
+        ]
+
+        result = get_personal_records(api)
+
+        assert len(result) == 2
+        assert result[0]["record_type"] == "FASTEST_5K"
+        assert result[0]["value"] == 1200.0
+        assert result[0]["activity_id"] == "12345"
+        assert result[1]["record_type"] == "LONGEST_RUN"
+        assert result[1]["date"] == "2024-11-03"
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_personal_record.return_value = None
+
+        assert get_personal_records(api) == []
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_personal_record.side_effect = Exception("fail")
+
+        assert get_personal_records(api) == []
+
+    def test_handles_single_dict_response(self):
+        api = MagicMock()
+        api.get_personal_record.return_value = {
+            "typeKey": "running",
+            "personalRecordType": "FASTEST_MILE",
+            "value": 360.0,
+        }
+
+        result = get_personal_records(api)
+
+        assert len(result) == 1
+        assert result[0]["record_type"] == "FASTEST_MILE"
+
+
+# --- get_progress_summary ---
+
+class TestGetProgressSummary:
+
+    def test_returns_progress_data(self):
+        api = MagicMock()
+        api.get_progress_summary_between_dates.return_value = {
+            "totalActivities": 25,
+            "totalDistance": 120000,
+            "totalDuration": 72000,
+        }
+
+        result = get_progress_summary(api, start_date="2025-01-01", end_date="2025-01-31")
+
+        assert result["totalActivities"] == 25
+        assert result["totalDistance"] == 120000
+        api.get_progress_summary_between_dates.assert_called_once_with("2025-01-01", "2025-01-31")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_progress_summary_between_dates.return_value = None
+
+        assert get_progress_summary(api, start_date="2025-01-01", end_date="2025-01-31") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_progress_summary_between_dates.side_effect = Exception("fail")
+
+        assert get_progress_summary(api, start_date="2025-01-01", end_date="2025-01-31") == {}

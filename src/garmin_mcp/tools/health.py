@@ -169,6 +169,89 @@ def get_stress_data(
     return results
 
 
+def get_heart_rates(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get intraday heart rate data for a given date."""
+    try:
+        data = api.get_heart_rates(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    result: dict[str, Any] = {"date": cdate}
+    result["resting_hr"] = data.get("restingHeartRate")
+    result["max_hr"] = data.get("maxHeartRate")
+    result["min_hr"] = data.get("minHeartRate")
+
+    zones = data.get("heartRateZones")
+    if zones:
+        result["heart_rate_zones"] = [
+            {
+                "zone_number": z.get("zoneNumber"),
+                "seconds_in_zone": z.get("secsInZone"),
+                "zone_low_boundary": z.get("zoneLowBoundary"),
+            }
+            for z in zones
+            if isinstance(z, dict)
+        ]
+
+    return result
+
+
+def get_body_battery_events(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get body battery drain and charge events for a given date."""
+    try:
+        data = api.get_body_battery_events(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    events: list[dict[str, Any]] = []
+    for event in data if isinstance(data, list) else [data]:
+        if not isinstance(event, dict):
+            continue
+        events.append({
+            "event_type": event.get("eventType"),
+            "title": event.get("title"),
+            "impact": event.get("impact"),
+            "duration_seconds": event.get("durationInSeconds"),
+            "body_battery_change": event.get("bodyBatteryChange"),
+        })
+
+    return {"date": cdate, "events": events}
+
+
+def get_intensity_minutes(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get intensity minutes data for a given date."""
+    try:
+        data = api.get_intensity_minutes_data(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return {
+        "date": cdate,
+        "weekly_goal": data.get("weeklyGoal"),
+        "moderate_minutes": data.get("moderateIntensityMinutes"),
+        "vigorous_minutes": data.get("vigorousIntensityMinutes"),
+        "total_intensity_minutes": data.get("intensityMinutesGoalReached"),
+    }
+
+
 def get_resting_hr_trend(
     api: Garmin,
     days: int = 14,
