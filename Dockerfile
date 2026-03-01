@@ -9,8 +9,15 @@ RUN uv sync --frozen --no-dev
 # Copy source
 COPY src/ src/
 
+# Non-root user for runtime — session tokens are owned by this user,
+# so 0700 permissions in garmin_client.py are meaningful.
+RUN groupadd --gid 1000 mcp && \
+    useradd --uid 1000 --gid mcp --no-create-home mcp
+
 # Session token cache lives here; mount a volume to persist across restarts
-RUN mkdir -p config/.session
+RUN mkdir -p config/.session && chown -R mcp:mcp config/
+
+USER mcp
 
 # SSE transport — clients connect to http://<host>:8000/sse
 EXPOSE 8000
