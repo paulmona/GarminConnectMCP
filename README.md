@@ -73,6 +73,8 @@ Use the full path to `uv` (find it with `which uv`). Quit and relaunch Claude De
 
 ## Option B — Docker (SSE, remote-friendly)
 
+> **Note:** Remote MCP via claude.ai is currently broken due to an OAuth bug on Anthropic's side. The OAuth PKCE flow completes successfully but claude.ai fails to use the issued token. This does not affect Claude Desktop connecting to a remote server (which uses direct Bearer token auth). This note will be removed once the bug is resolved.
+
 Best for running on a home server or NAS so Claude on any device (Desktop, mobile, web) can reach it.
 
 ### Requirements
