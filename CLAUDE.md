@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 GARMIN_EMAIL=x GARMIN_PASSWORD=y ~/.local/bin/uv run garmin-mcp
 
 # Run the server in SSE/HTTP mode with OAuth
-MCP_MODE=sse MCP_API_KEY=secret MCP_SERVER_URL=https://garminmcp.spider.org \
+MCP_MODE=sse MCP_API_KEY=secret MCP_SERVER_URL=https://your-server.example.com \
   ~/.local/bin/uv run garmin-mcp
 
 # End-to-end OAuth PKCE test against live server
@@ -117,4 +117,4 @@ Fully in-memory; all state is lost on container restart (tokens, registered clie
 
 ## Testing
 
-Tests live in `tests/`. `pytest-asyncio` is configured with `asyncio_mode = "auto"`. Tests mock the Garmin API — no live credentials needed. The `test_mcp_oauth.py` script in the repo root requires a live server at `https://garminmcp.spider.org` and is run manually, not via pytest.
+Tests live in `tests/`. `pytest-asyncio` is configured with `asyncio_mode = "auto"`. Tests mock the Garmin API — no live credentials needed. The `test_mcp_oauth.py` script in the repo root requires a live server at `https://your-server.example.com` and is run manually, not via pytest.
