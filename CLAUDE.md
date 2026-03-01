@@ -40,6 +40,10 @@ docker buildx build --platform linux/amd64 --push -t paulmon/garmin-connect-mcp:
 #   3. docker buildx build --platform linux/amd64 --push -t paulmon/garmin-connect-mcp:latest .
 ```
 
+## Workflow
+
+When working on a GitHub issue, always create a feature branch from `main` before making changes. Use the naming convention `feature/<short-description>` (e.g., `feature/totp-authorize-gate`). Commit messages and PR descriptions should include `Closes #<issue-number>` so the issue is automatically closed when the PR is merged.
+
 ## Architecture
 
 The project is a single Python package (`src/garmin_mcp/`) built on [FastMCP](https://github.com/jlowin/fastmcp). All 13 MCP tools are registered on the global `mcp` instance in `server.py`.
