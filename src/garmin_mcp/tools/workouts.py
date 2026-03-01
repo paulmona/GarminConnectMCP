@@ -150,3 +150,78 @@ def upload_running_workout(
 
     result = api.upload_running_workout(workout)
     return result if result else {}
+
+
+def upload_cycling_workout(
+    api: Garmin,
+    workout_name: str,
+    steps: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Upload a cycling workout to Garmin Connect.
+
+    Args:
+        api: Garmin API instance
+        workout_name: Name for the workout
+        steps: List of step dicts, each with:
+            - type: "warmup" | "cooldown" | "interval" | "recovery" | "repeat"
+            - duration_seconds: float (for warmup/cooldown/interval/recovery)
+            - iterations: int (for repeat only)
+            - steps: list of nested step dicts (for repeat only)
+    """
+    from garminconnect.workout import (
+        CyclingWorkout,
+        WorkoutSegment,
+        create_cooldown_step,
+        create_interval_step,
+        create_recovery_step,
+        create_repeat_group,
+        create_warmup_step,
+    )
+
+    def _build_step(step_def: dict[str, Any], order: int) -> Any:
+        step_type = step_def.get("type", "interval")
+        duration = float(step_def.get("duration_seconds", 300))
+
+        if step_type == "warmup":
+            return create_warmup_step(duration, step_order=order)
+        elif step_type == "cooldown":
+            return create_cooldown_step(duration, step_order=order)
+        elif step_type == "recovery":
+            return create_recovery_step(duration, step_order=order)
+        elif step_type == "repeat":
+            iterations = int(step_def.get("iterations", 1))
+            nested = step_def.get("steps", [])
+            nested_steps = [_build_step(s, i + 1) for i, s in enumerate(nested)]
+            return create_repeat_group(iterations, nested_steps, step_order=order)
+        else:  # interval
+            return create_interval_step(duration, step_order=order)
+
+    workout_steps = [_build_step(s, i + 1) for i, s in enumerate(steps)]
+
+    # Estimate total duration from steps
+    def _estimate_duration(step_list: list[dict[str, Any]]) -> float:
+        total = 0.0
+        for s in step_list:
+            if s.get("type") == "repeat":
+                iters = int(s.get("iterations", 1))
+                total += iters * _estimate_duration(s.get("steps", []))
+            else:
+                total += float(s.get("duration_seconds", 300))
+        return total
+
+    estimated_duration = int(_estimate_duration(steps))
+
+    workout = CyclingWorkout(
+        workoutName=workout_name,
+        estimatedDurationInSecs=estimated_duration,
+        workoutSegments=[
+            WorkoutSegment(
+                segmentOrder=1,
+                sportType={"sportTypeId": 2, "sportTypeKey": "cycling"},
+                workoutSteps=workout_steps,
+            )
+        ],
+    )
+
+    result = api.upload_cycling_workout(workout)
+    return result if result else {}

@@ -11,8 +11,10 @@ from garmin_mcp.tools.health import (
     get_heart_rates,
     get_hrv_trend,
     get_intensity_minutes,
+    get_respiration_data,
     get_resting_hr_trend,
     get_sleep_history,
+    get_spo2_data,
     get_stress_data,
     get_weekly_intensity_minutes,
     get_weekly_stress,
@@ -519,3 +521,69 @@ class TestGetWeeklyIntensityMinutes:
         api.get_weekly_intensity_minutes.side_effect = Exception("fail")
 
         assert get_weekly_intensity_minutes(api, end="2025-01-15") == {}
+
+
+# --- get_respiration_data ---
+
+
+class TestGetRespirationData:
+    def test_returns_respiration_data(self):
+        api = MagicMock()
+        api.get_respiration_data.return_value = {
+            "startTimestampGMT": "2025-01-15T00:00:00",
+            "endTimestampGMT": "2025-01-15T23:59:59",
+            "avgWakingRespirationValue": 16.0,
+            "highestRespirationValue": 22.0,
+            "lowestRespirationValue": 12.0,
+        }
+
+        result = get_respiration_data(api, cdate="2025-01-15")
+
+        assert result["avgWakingRespirationValue"] == 16.0
+        assert result["highestRespirationValue"] == 22.0
+        api.get_respiration_data.assert_called_once_with("2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_respiration_data.return_value = None
+
+        assert get_respiration_data(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_respiration_data.side_effect = Exception("fail")
+
+        assert get_respiration_data(api, cdate="2025-01-15") == {}
+
+
+# --- get_spo2_data ---
+
+
+class TestGetSpo2Data:
+    def test_returns_spo2_data(self):
+        api = MagicMock()
+        api.get_spo2_data.return_value = {
+            "calendarDate": "2025-01-15",
+            "averageSPO2": 96.0,
+            "lowestSPO2": 92,
+            "latestSPO2": 97,
+            "latestSPO2ReadingTimeLocal": "2025-01-15 08:30:00",
+        }
+
+        result = get_spo2_data(api, cdate="2025-01-15")
+
+        assert result["averageSPO2"] == 96.0
+        assert result["lowestSPO2"] == 92
+        api.get_spo2_data.assert_called_once_with("2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_spo2_data.return_value = None
+
+        assert get_spo2_data(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_spo2_data.side_effect = Exception("fail")
+
+        assert get_spo2_data(api, cdate="2025-01-15") == {}

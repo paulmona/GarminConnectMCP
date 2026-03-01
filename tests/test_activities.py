@@ -5,12 +5,16 @@ from unittest.mock import MagicMock
 from garmin_mcp.tools.activities import (
     _format_pace,
     _summarize_activity,
+    get_activities_for_date,
     get_activities_in_range,
     get_activity_detail,
+    get_activity_details,
+    get_activity_gear,
     get_activity_power_zones,
     get_activity_split_summaries,
     get_activity_typed_splits,
     get_activity_weather,
+    get_last_activity,
     get_recent_activities,
 )
 
@@ -348,3 +352,124 @@ class TestGetActivityPowerZones:
         api.get_activity_power_in_timezones.side_effect = Exception("fail")
 
         assert get_activity_power_zones(api, "12345") == {}
+
+
+# --- get_last_activity ---
+
+
+class TestGetLastActivity:
+    def test_returns_summarized_activity(self):
+        api = MagicMock()
+        api.get_last_activity.return_value = _sample_activity()
+
+        result = get_last_activity(api)
+
+        assert result["activity_id"] == 12345
+        assert result["name"] == "Morning Run"
+        api.get_last_activity.assert_called_once()
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_last_activity.return_value = None
+
+        assert get_last_activity(api) == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_last_activity.side_effect = Exception("fail")
+
+        assert get_last_activity(api) == {}
+
+
+# --- get_activities_for_date ---
+
+
+class TestGetActivitiesForDate:
+    def test_returns_activities(self):
+        api = MagicMock()
+        api.get_activities_fordate.return_value = [_sample_activity()]
+
+        result = get_activities_for_date(api, "2025-01-15")
+
+        assert len(result) == 1
+        assert result[0]["activity_id"] == 12345
+        api.get_activities_fordate.assert_called_once_with("2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activities_fordate.return_value = None
+
+        assert get_activities_for_date(api, "2025-01-15") == []
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activities_fordate.side_effect = Exception("fail")
+
+        assert get_activities_for_date(api, "2025-01-15") == []
+
+    def test_wraps_single_dict_in_list(self):
+        api = MagicMock()
+        api.get_activities_fordate.return_value = _sample_activity()
+
+        result = get_activities_for_date(api, "2025-01-15")
+
+        assert len(result) == 1
+        assert result[0]["activity_id"] == 12345
+
+
+# --- get_activity_details ---
+
+
+class TestGetActivityDetails:
+    def test_returns_details(self):
+        api = MagicMock()
+        api.get_activity_details.return_value = {
+            "activityId": 12345,
+            "metricDescriptors": [],
+            "activityDetailMetrics": [{"metricsIndex": 0}],
+        }
+
+        result = get_activity_details(api, "12345")
+
+        assert result["activityId"] == 12345
+        api.get_activity_details.assert_called_once_with("12345")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activity_details.return_value = None
+
+        assert get_activity_details(api, "12345") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activity_details.side_effect = Exception("fail")
+
+        assert get_activity_details(api, "12345") == {}
+
+
+# --- get_activity_gear ---
+
+
+class TestGetActivityGear:
+    def test_returns_gear(self):
+        api = MagicMock()
+        api.get_activity_gear.return_value = {
+            "gearItems": [{"gearPk": 1, "displayName": "Nike Pegasus", "gearTypeName": "Running Shoe"}]
+        }
+
+        result = get_activity_gear(api, "12345")
+
+        assert "gearItems" in result
+        api.get_activity_gear.assert_called_once_with("12345")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activity_gear.return_value = None
+
+        assert get_activity_gear(api, "12345") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activity_gear.side_effect = Exception("fail")
+
+        assert get_activity_gear(api, "12345") == {}

@@ -186,6 +186,63 @@ def get_activity_power_zones(activity_id: str) -> str:
         return NOT_CONFIGURED_MSG
 
 
+@mcp.tool()
+def get_last_activity() -> str:
+    """Get the most recent Garmin activity. Returns date, name, distance,
+    duration, heart rate, and pace. No parameters needed."""
+    from .tools.activities import get_last_activity as _get
+
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_activities_for_date(cdate: str) -> str:
+    """Get all Garmin activities for a specific date (YYYY-MM-DD).
+    Returns summarized activity data for every activity on that day."""
+    from .tools.activities import get_activities_for_date as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_activity_details(activity_id: str) -> str:
+    """Get detailed activity data including GPS trackpoints and heart rate
+    trace. Provides granular data beyond get_activity_detail. Use an
+    activity_id from get_recent_activities."""
+    from .tools.activities import get_activity_details as _get
+
+    activity_id = _validate_activity_id(activity_id)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_activity_gear(activity_id: str) -> str:
+    """Get gear (shoes, bike, etc.) used for a given activity. Useful for
+    tracking shoe mileage and equipment usage. Use an activity_id from
+    get_recent_activities."""
+    from .tools.activities import get_activity_gear as _get
+
+    activity_id = _validate_activity_id(activity_id)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
 # --- Health tools ---
 
 
@@ -325,6 +382,34 @@ def get_intensity_minutes(cdate: str) -> str:
     """Get intensity minutes data for a given date (YYYY-MM-DD) including
     moderate and vigorous minutes towards the weekly goal."""
     from .tools.health import get_intensity_minutes as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_respiration_data(cdate: str) -> str:
+    """Get respiration (breathing rate) data for a given date (YYYY-MM-DD).
+    Returns average, highest, and lowest breathing rates throughout the day."""
+    from .tools.health import get_respiration_data as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_spo2_data(cdate: str) -> str:
+    """Get SpO2 (blood oxygen saturation) data for a given date (YYYY-MM-DD).
+    Returns SpO2 readings throughout the day including sleep-time averages."""
+    from .tools.health import get_spo2_data as _get
 
     cdate = _validate_date(cdate)
     try:
@@ -586,6 +671,57 @@ def upload_running_workout(workout_name: str, steps: list[dict]) -> str:
         ]
     """
     from .tools.workouts import upload_running_workout as _upload
+
+    if not workout_name or not workout_name.strip():
+        raise ValueError("workout_name must not be empty")
+    if not steps:
+        raise ValueError("steps must not be empty")
+
+    _VALID_STEP_TYPES = {"warmup", "interval", "recovery", "cooldown", "repeat"}
+
+    def _validate_steps(step_list: list[dict]) -> None:
+        for s in step_list:
+            stype = s.get("type", "interval")
+            if stype not in _VALID_STEP_TYPES:
+                raise ValueError(f"Invalid step type: {stype!r}. Must be one of {_VALID_STEP_TYPES}")
+            if stype == "repeat":
+                nested = s.get("steps", [])
+                if not nested:
+                    raise ValueError("Repeat step must have nested steps")
+                _validate_steps(nested)
+
+    _validate_steps(steps)
+
+    try:
+        result = _get_client().call_with_retry(lambda api: _upload(api, workout_name=workout_name, steps=steps))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def upload_cycling_workout(workout_name: str, steps: list[dict]) -> str:
+    """Upload a cycling workout to Garmin Connect so it syncs to your watch.
+
+    Args:
+        workout_name: Name for the workout (e.g. "FTP Intervals", "Sweet Spot")
+        steps: List of step objects. Each step has:
+            - type: "warmup", "interval", "recovery", "cooldown", or "repeat"
+            - duration_seconds: duration in seconds (for warmup/interval/recovery/cooldown)
+            - iterations: number of repeats (for "repeat" type only)
+            - steps: nested list of steps (for "repeat" type only)
+
+    Example steps for a 4x5min cycling interval workout:
+        [
+            {"type": "warmup", "duration_seconds": 600},
+            {"type": "repeat", "iterations": 4, "steps": [
+                {"type": "interval", "duration_seconds": 300},
+                {"type": "recovery", "duration_seconds": 180}
+            ]},
+            {"type": "cooldown", "duration_seconds": 300}
+        ]
+    """
+    from .tools.workouts import upload_cycling_workout as _upload
 
     if not workout_name or not workout_name.strip():
         raise ValueError("workout_name must not be empty")
