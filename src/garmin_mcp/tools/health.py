@@ -322,6 +322,56 @@ def get_spo2_data(
     return data
 
 
+def get_steps_data(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get intraday step data with per-interval breakdowns for a given date."""
+    try:
+        data = api.get_steps_data(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_daily_steps(
+    api: Garmin,
+    start: str,
+    end: str,
+) -> dict[str, Any]:
+    """Get daily step counts between two dates."""
+    try:
+        data = api.get_daily_steps(start, end)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_weekly_steps(
+    api: Garmin,
+    end: str,
+    weeks: int = 4,
+) -> dict[str, Any]:
+    """Get weekly step aggregates."""
+    try:
+        data = api.get_weekly_steps(end, weeks)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
 def get_resting_hr_trend(
     api: Garmin,
     days: int = 14,

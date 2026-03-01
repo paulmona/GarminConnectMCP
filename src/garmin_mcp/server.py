@@ -419,6 +419,50 @@ def get_spo2_data(cdate: str) -> str:
         return NOT_CONFIGURED_MSG
 
 
+@mcp.tool()
+def get_steps_data(cdate: str) -> str:
+    """Get intraday step data for a given date (YYYY-MM-DD) with per-interval
+    breakdowns showing when steps were accumulated throughout the day."""
+    from .tools.health import get_steps_data as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_daily_steps(start: str, end: str) -> str:
+    """Get daily step counts between two dates (YYYY-MM-DD). Returns step
+    totals for each day in the range."""
+    from .tools.health import get_daily_steps as _get
+
+    start = _validate_date(start)
+    end = _validate_date(end)
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, start=start, end=end))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_weekly_steps(end: str, weeks: int = 4) -> str:
+    """Get weekly step aggregates ending on a date (YYYY-MM-DD).
+    Returns step totals by week. Max 12 weeks."""
+    from .tools.health import get_weekly_steps as _get
+
+    end = _validate_date(end)
+    weeks = max(1, min(weeks, _MAX_WEEKS))
+    try:
+        result = _get_client().call_with_retry(lambda api: _get(api, end=end, weeks=weeks))
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
 # --- Training tools ---
 
 
