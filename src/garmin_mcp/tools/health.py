@@ -137,6 +137,38 @@ def get_body_battery(
     return results
 
 
+def get_stress_data(
+    api: Garmin,
+    days: int = 7,
+) -> list[dict[str, Any]]:
+    """Get all-day stress data over recent days."""
+    dates = _date_range(days)
+    results: list[dict[str, Any]] = []
+
+    for d in reversed(dates):
+        try:
+            data = api.get_all_day_stress(d)
+            if data:
+                results.append({
+                    "date": d,
+                    "overall_stress_level": data.get("overallStressLevel"),
+                    "rest_stress_duration": data.get("restStressDuration"),
+                    "activity_stress_duration": data.get("activityStressDuration"),
+                    "uncategorized_stress_duration": data.get("uncategorizedStressDuration"),
+                    "total_stress_duration": data.get("totalStressDuration"),
+                    "low_stress_duration": data.get("lowStressDuration"),
+                    "medium_stress_duration": data.get("mediumStressDuration"),
+                    "high_stress_duration": data.get("highStressDuration"),
+                    "stress_qualifier": data.get("stressQualifier"),
+                })
+            else:
+                results.append({"date": d, "overall_stress_level": None})
+        except Exception:
+            results.append({"date": d, "overall_stress_level": None})
+
+    return results
+
+
 def get_resting_hr_trend(
     api: Garmin,
     days: int = 14,

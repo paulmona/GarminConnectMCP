@@ -9,6 +9,7 @@ from garmin_mcp.tools.health import (
     get_hrv_trend,
     get_resting_hr_trend,
     get_sleep_history,
+    get_stress_data,
 )
 
 
@@ -260,3 +261,51 @@ class TestGetRestingHrTrend:
         result = get_resting_hr_trend(api, days=1)
 
         assert result[0]["resting_hr"] is None
+
+
+# --- get_stress_data ---
+
+class TestGetStressData:
+
+    @patch("garmin_mcp.tools.health._date_range")
+    def test_returns_stress_data(self, mock_range):
+        mock_range.return_value = ["2025-01-02", "2025-01-01"]
+        api = MagicMock()
+        api.get_all_day_stress.return_value = {
+            "overallStressLevel": 35,
+            "restStressDuration": 28800,
+            "activityStressDuration": 3600,
+            "uncategorizedStressDuration": 1200,
+            "totalStressDuration": 43200,
+            "lowStressDuration": 25000,
+            "mediumStressDuration": 10000,
+            "highStressDuration": 5000,
+            "stressQualifier": "low",
+        }
+
+        result = get_stress_data(api, days=2)
+
+        assert len(result) == 2
+        assert result[0]["overall_stress_level"] == 35
+        assert result[0]["stress_qualifier"] == "low"
+        assert result[0]["high_stress_duration"] == 5000
+
+    @patch("garmin_mcp.tools.health._date_range")
+    def test_handles_none_stress_data(self, mock_range):
+        mock_range.return_value = ["2025-01-01"]
+        api = MagicMock()
+        api.get_all_day_stress.return_value = None
+
+        result = get_stress_data(api, days=1)
+
+        assert result[0]["overall_stress_level"] is None
+
+    @patch("garmin_mcp.tools.health._date_range")
+    def test_handles_exception(self, mock_range):
+        mock_range.return_value = ["2025-01-01"]
+        api = MagicMock()
+        api.get_all_day_stress.side_effect = Exception("api fail")
+
+        result = get_stress_data(api, days=1)
+
+        assert result[0]["overall_stress_level"] is None

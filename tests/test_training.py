@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, patch
 
 from garmin_mcp.tools.training import (
     _format_time,
+    get_endurance_score,
+    get_lactate_threshold,
+    get_max_metrics,
+    get_morning_readiness,
     get_race_predictions,
     get_recovery_snapshot,
     get_training_status,
@@ -442,3 +446,199 @@ class TestGetRecoverySnapshot:
 
         assert result["readiness_score"] is None
         assert result["hrv_last_night"] == 42
+
+
+# --- get_morning_readiness ---
+
+class TestGetMorningReadiness:
+
+    @patch("garmin_mcp.tools.training.date")
+    def test_returns_morning_readiness(self, mock_date):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        api = MagicMock()
+        api.get_morning_training_readiness.return_value = {
+            "score": 68,
+            "level": "MODERATE",
+            "sleepScorePercentage": 80,
+            "recoveryTimeInHours": 18,
+            "hrvStatus": "BALANCED",
+            "heatAcclimationStatus": None,
+            "altitudeAcclimationStatus": None,
+        }
+
+        result = get_morning_readiness(api, days=2)
+
+        assert len(result) == 2
+        assert result[0]["score"] == 68
+        assert result[0]["level"] == "MODERATE"
+        assert result[0]["hrv_status"] == "BALANCED"
+
+    @patch("garmin_mcp.tools.training.date")
+    def test_handles_none_response(self, mock_date):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        api = MagicMock()
+        api.get_morning_training_readiness.return_value = None
+
+        result = get_morning_readiness(api, days=1)
+
+        assert result[0]["score"] is None
+
+    @patch("garmin_mcp.tools.training.date")
+    def test_handles_exception(self, mock_date):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        api = MagicMock()
+        api.get_morning_training_readiness.side_effect = Exception("fail")
+
+        result = get_morning_readiness(api, days=1)
+
+        assert result[0]["score"] is None
+
+
+# --- get_max_metrics ---
+
+class TestGetMaxMetrics:
+
+    @patch("garmin_mcp.tools.training.date")
+    def test_returns_max_metrics(self, mock_date):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        api = MagicMock()
+        api.get_max_metrics.return_value = [{
+            "calendarDate": "2025-01-15",
+            "generic": {
+                "vo2MaxPreciseValue": 52.3,
+                "fitnessAge": 28,
+            },
+            "cycling": {
+                "vo2MaxPreciseValue": 48.1,
+            },
+        }]
+
+        result = get_max_metrics(api)
+
+        assert result["vo2_max_running"] == 52.3
+        assert result["fitness_age"] == 28
+        assert result["vo2_max_cycling"] == 48.1
+        assert result["updated"] == "2025-01-15"
+
+    @patch("garmin_mcp.tools.training.date")
+    def test_handles_empty_response(self, mock_date):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        api = MagicMock()
+        api.get_max_metrics.return_value = None
+
+        result = get_max_metrics(api)
+
+        assert result == {}
+
+    @patch("garmin_mcp.tools.training.date")
+    def test_handles_exception(self, mock_date):
+        mock_date.today.return_value = date(2025, 1, 15)
+        mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
+        api = MagicMock()
+        api.get_max_metrics.side_effect = Exception("fail")
+
+        result = get_max_metrics(api)
+
+        assert result == {}
+
+
+# --- get_endurance_score ---
+
+class TestGetEnduranceScore:
+
+    def test_returns_single_day_score(self):
+        api = MagicMock()
+        api.get_endurance_score.return_value = {
+            "overallScore": 72,
+            "runningScore": 68,
+            "cyclingScore": 55,
+            "swimmingScore": 30,
+        }
+
+        result = get_endurance_score(api, start_date="2025-01-15")
+
+        assert result["overall_score"] == 72
+        assert result["running_score"] == 68
+        assert result["date"] == "2025-01-15"
+
+    def test_returns_range_data(self):
+        api = MagicMock()
+        api.get_endurance_score.return_value = {"some": "aggregated_data"}
+
+        result = get_endurance_score(
+            api, start_date="2025-01-01", end_date="2025-01-15"
+        )
+
+        assert result == {"some": "aggregated_data"}
+        api.get_endurance_score.assert_called_once_with("2025-01-01", "2025-01-15")
+
+    def test_handles_exception(self):
+        api = MagicMock()
+        api.get_endurance_score.side_effect = Exception("fail")
+
+        result = get_endurance_score(api, start_date="2025-01-15")
+
+        assert result == {}
+
+
+# --- get_lactate_threshold ---
+
+class TestGetLactateThreshold:
+
+    def test_returns_lactate_threshold(self):
+        api = MagicMock()
+        api.get_lactate_threshold.return_value = {
+            "speed_and_heart_rate": {
+                "heartRate": 165,
+                "speed": 3.5,
+                "calendarDate": "2025-01-10",
+            },
+            "power": {
+                "functionalThresholdPower": 280,
+            },
+        }
+
+        result = get_lactate_threshold(api)
+
+        assert result["heart_rate_bpm"] == 165
+        assert result["speed_m_per_s"] == 3.5
+        assert result["pace_min_per_km"] is not None
+        assert result["ftp_watts"] == 280
+        assert result["date"] == "2025-01-10"
+
+    def test_handles_empty_response(self):
+        api = MagicMock()
+        api.get_lactate_threshold.return_value = None
+
+        result = get_lactate_threshold(api)
+
+        assert result == {}
+
+    def test_handles_exception(self):
+        api = MagicMock()
+        api.get_lactate_threshold.side_effect = Exception("fail")
+
+        result = get_lactate_threshold(api)
+
+        assert result == {}
+
+    def test_pace_conversion_correct(self):
+        api = MagicMock()
+        # 3.333 m/s = 5:00 min/km
+        api.get_lactate_threshold.return_value = {
+            "speed_and_heart_rate": {
+                "heartRate": 160,
+                "speed": 3.333333,
+                "calendarDate": "2025-01-10",
+            },
+            "power": {},
+        }
+
+        result = get_lactate_threshold(api)
+
+        assert result["pace_min_per_km"] == "0:05:00"

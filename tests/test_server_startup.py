@@ -4,11 +4,11 @@
 class TestMcpServerRegistration:
     """Tests that the MCP server registers all expected tools."""
 
-    def test_mcp_server_has_thirteen_tools(self):
+    def test_mcp_server_has_expected_tool_count(self):
         from garmin_mcp.server import mcp
 
         tools = mcp._tool_manager.list_tools()
-        assert len(tools) == 13
+        assert len(tools) == 18
 
     def test_mcp_server_tool_names(self):
         from garmin_mcp.server import mcp
@@ -28,6 +28,11 @@ class TestMcpServerRegistration:
             "get_recovery_snapshot",
             "get_weight_trend",
             "get_body_composition",
+            "get_morning_readiness",
+            "get_stress_data",
+            "get_max_metrics",
+            "get_endurance_score",
+            "get_lactate_threshold",
         }
         assert names == expected
 
