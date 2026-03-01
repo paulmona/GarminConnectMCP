@@ -1,11 +1,11 @@
-"""Tests for the TOTP gate ASGI middleware."""
+"""Tests for the TOTP gate ASGI middleware and startup validation."""
 
 from urllib.parse import urlencode
 
 import pyotp
 import pytest
 
-from garmin_mcp.server import _TOTPGateMiddleware
+from garmin_mcp.server import _TOTPGateMiddleware, main
 
 _TEST_SECRET = "JBSWY3DPEHPK3PXP"
 
@@ -158,3 +158,19 @@ class TestTOTPGateMiddleware:
         qs = forwarded_scopes[0]["query_string"].decode()
         assert "client_id=test" in qs
         assert "totp_code" not in qs
+
+
+class TestTOTPStartupValidation:
+    def test_refuses_to_start_without_totp_secret(self, monkeypatch):
+        monkeypatch.setenv("MCP_MODE", "sse")
+        monkeypatch.setenv("MCP_API_KEY", "test-key")
+        monkeypatch.delenv("MCP_TOTP_SECRET", raising=False)
+        with pytest.raises(SystemExit):
+            main()
+
+    def test_refuses_when_totp_secret_is_blank(self, monkeypatch):
+        monkeypatch.setenv("MCP_MODE", "sse")
+        monkeypatch.setenv("MCP_API_KEY", "test-key")
+        monkeypatch.setenv("MCP_TOTP_SECRET", "   ")
+        with pytest.raises(SystemExit):
+            main()

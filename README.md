@@ -121,7 +121,9 @@ Replace `localhost` with your server's IP or hostname if running remotely.
 | `GARMIN_EMAIL` | Yes | — | Garmin Connect email |
 | `GARMIN_PASSWORD` | Yes | — | Garmin Connect password |
 | `MCP_MODE` | No | `stdio` | Set to `sse` for Docker/remote |
-| `MCP_API_KEY` | No | — | Bearer token required on all SSE requests. Strongly recommended when exposing over the internet |
+| `MCP_API_KEY` | No | — | Bearer token; enables OAuth server. Strongly recommended when exposing over the internet |
+| `MCP_TOTP_SECRET` | Yes (when `MCP_API_KEY` set) | — | Base32 TOTP secret for 2FA on OAuth `/authorize`. Required to prevent unauthorized token issuance. Generate with: `python3 -c "import pyotp; print(pyotp.random_base32())"` |
+| `MCP_SERVER_URL` | No | `http://localhost:8000` | Public base URL for OAuth issuer/resource metadata |
 | `MCP_HOST` | No | `0.0.0.0` | SSE bind address |
 | `MCP_PORT` | No | `8000` | SSE port |
 
@@ -146,7 +148,7 @@ docker-compose.yml     # Compose config with session volume
 
 ## Security
 
-Credentials are passed via environment variables and never stored on disk or committed to git. OAuth session tokens are cached in `config/.session/` with owner-only permissions (or in a Docker volume). When `MCP_API_KEY` is set, the server enforces Bearer token authentication on all requests and also exposes a full OAuth 2.0 PKCE server for claude.ai remote MCP. See [SECURITY.md](SECURITY.md) for the full security model.
+Credentials are passed via environment variables and never stored on disk or committed to git. OAuth session tokens are cached in `config/.session/` with owner-only permissions (or in a Docker volume). When `MCP_API_KEY` is set, the server enforces Bearer token authentication on all requests and exposes a full OAuth 2.0 PKCE server for claude.ai remote MCP. `MCP_TOTP_SECRET` is **required** in this mode — it gates the `/authorize` endpoint behind a 6-digit authenticator code, preventing unauthorized OAuth token issuance. See [SECURITY.md](SECURITY.md) for the full security model.
 
 ## Running Tests
 
