@@ -62,7 +62,8 @@ _RequestLogMiddleware              # logs every REQ/RSP for debugging
       _TokenEndpointMiddleware     # logs POST /token body + injects RFC 8707 resource field
         _AcceptHeaderMiddleware    # injects required Accept header if missing
           _Fix401Middleware        # strips error="invalid_token" from 401 WWW-Authenticate
-            mcp.streamable_http_app()  # FastMCP's ASGI app (POST /mcp endpoint)
+            _TOTPGateMiddleware    # (when MCP_TOTP_SECRET set) requires 6-digit TOTP on /authorize
+              mcp.streamable_http_app()  # FastMCP's ASGI app (POST /mcp endpoint)
 ```
 
 ### Key files
@@ -105,6 +106,7 @@ Fully in-memory; all state is lost on container restart (tokens, registered clie
 | `MCP_MODE` | No (default `stdio`) | `sse` for Docker/remote |
 | `MCP_API_KEY` | No | Bearer token; enables OAuth server when set in SSE mode |
 | `MCP_SERVER_URL` | No (default `http://localhost:8000`) | Public base URL for OAuth issuer/resource metadata |
+| `MCP_TOTP_SECRET` | No | Base32 TOTP secret; enables 2FA on `/authorize` when set |
 | `MCP_HOST` | No (default `0.0.0.0`) | SSE bind address |
 | `MCP_PORT` | No (default `8000`) | SSE port |
 | `GARMIN_SESSION_DIR` | No (default `config/.session`) | garth token cache directory |
