@@ -9,7 +9,7 @@ import secrets
 import time
 from datetime import date
 from typing import Any
-from urllib.parse import parse_qs, urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 
 _logger = logging.getLogger(__name__)
 
@@ -942,9 +942,6 @@ def main():
         from mcp.server.transport_security import TransportSecuritySettings
         mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")
         mcp.settings.port = int(os.environ.get("MCP_PORT", "8000"))
-        mcp.settings.transport_security = TransportSecuritySettings(
-            enable_dns_rebinding_protection=False
-        )
         api_key = os.environ.get("MCP_API_KEY", "").strip()
         if api_key:
             import anyio
@@ -954,6 +951,18 @@ def main():
             from mcp.server.fastmcp.server import AuthSettings
 
             server_url = os.environ.get("MCP_SERVER_URL", "http://localhost:8000").rstrip("/")
+            server_host = urlparse(server_url).hostname or "localhost"
+            allowed_hosts = [server_host]
+            extra_hosts = os.environ.get("MCP_ALLOWED_HOSTS", "").strip()
+            if extra_hosts:
+                allowed_hosts.extend(
+                    h.strip() for h in extra_hosts.split(",") if h.strip()
+                )
+            mcp.settings.transport_security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=allowed_hosts,
+            )
+            _logger.info("DNS rebinding protection enabled, allowed_hosts=%s", allowed_hosts)
             totp_secret = os.environ.get("MCP_TOTP_SECRET", "").strip()
             if not totp_secret:
                 _logger.error(
@@ -1006,6 +1015,9 @@ def main():
             import anyio
             import uvicorn
 
+            mcp.settings.transport_security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=False
+            )
             _logger.warning(
                 "MCP_API_KEY not set — endpoint is unauthenticated. "
                 "Set MCP_API_KEY to require Bearer token auth."

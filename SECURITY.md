@@ -62,6 +62,17 @@ The `_TOTPGateMiddleware` intercepts `GET /authorize` and renders an HTML form r
 
 Without `/authorize` gated by TOTP, the OAuth provider auto-approves all requests — meaning anyone who discovers the server URL gets full access to all Garmin health data via the OAuth flow.
 
+### DNS rebinding protection
+
+When `MCP_API_KEY` is set, the server enables the MCP SDK's DNS rebinding protection. This validates the `Host` header on incoming requests, rejecting any that don't match an allowed hostname. The allowed hostname is automatically derived from `MCP_SERVER_URL`.
+
+To allow additional hosts (e.g., LAN IPs for direct access), set `MCP_ALLOWED_HOSTS` to a comma-separated list:
+```
+MCP_ALLOWED_HOSTS=192.168.1.100,myserver.local
+```
+
+When `MCP_API_KEY` is **not** set (unauthenticated dev mode), DNS rebinding protection is disabled to allow localhost access without configuration.
+
 ---
 
 ## 4. Input Validation
