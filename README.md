@@ -124,6 +124,7 @@ Replace `localhost` with your server's IP or hostname if running remotely.
 | `MCP_API_KEY` | No | — | Bearer token; enables OAuth server. Strongly recommended when exposing over the internet |
 | `MCP_TOTP_SECRET` | Yes (when `MCP_API_KEY` set) | — | Base32 TOTP secret for 2FA on OAuth `/authorize`. Required to prevent unauthorized token issuance. Generate with: `python3 -c "import pyotp; print(pyotp.random_base32())"` |
 | `MCP_SERVER_URL` | No | `http://localhost:8000` | Public base URL for OAuth issuer/resource metadata |
+| `MCP_DEBUG` | No | — | Set to `true` to log full OAuth token bodies and Bearer token prefixes. Off by default to prevent secret leakage in logs |
 | `MCP_HOST` | No | `0.0.0.0` | SSE bind address |
 | `MCP_PORT` | No | `8000` | SSE port |
 

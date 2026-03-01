@@ -90,7 +90,21 @@ The `days` cap at 90 also serves as a rate-limit safety net. Without it, `get_hr
 
 ---
 
-## 5. Known Limitations
+## 5. Log Redaction (`MCP_DEBUG`)
+
+By default, the ASGI middleware stack **redacts** sensitive material from logs:
+
+| Middleware | Default (safe) | `MCP_DEBUG=true` |
+|-----------|---------------|-----------------|
+| `_RequestLogMiddleware` | `auth=Bearer ***` | `auth=Bearer <first 10 chars>...` |
+| `_TokenEndpointMiddleware` (request) | Body length only | Full POST body (grant_type, code, etc.) |
+| `_TokenEndpointMiddleware` (response) | `token_type` + `scope` + length | Full JSON including `access_token` and `refresh_token` |
+
+Set `MCP_DEBUG=true` **only** when actively troubleshooting OAuth flows. Never leave it enabled in production — token values in logs can be used to impersonate users.
+
+---
+
+## 6. Known Limitations
 
 ### MFA is not supported
 
@@ -110,7 +124,7 @@ The tool modules (`health.py`, `activities.py`, `training.py`) use bare `except 
 
 ---
 
-## 6. For Contributors
+## 7. For Contributors
 
 ### Do NOT:
 

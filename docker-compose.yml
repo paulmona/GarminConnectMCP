@@ -10,6 +10,7 @@ services:
       MCP_MODE: sse
       MCP_API_KEY: ${MCP_API_KEY:-}
       MCP_TOTP_SECRET: ${MCP_TOTP_SECRET:-}
+      MCP_DEBUG: ${MCP_DEBUG:-}
     volumes:
       - garmin-session:/app/config/.session
     restart: unless-stopped
