@@ -19,10 +19,12 @@ from mcp.server.fastmcp import FastMCP
 from .config import CredentialsNotConfiguredError
 from .garmin_client import GarminClient
 
-NOT_CONFIGURED_MSG = json.dumps({
-    "error": "not_configured",
-    "message": "Garmin credentials not configured. Set GARMIN_EMAIL and GARMIN_PASSWORD environment variables.",
-})
+NOT_CONFIGURED_MSG = json.dumps(
+    {
+        "error": "not_configured",
+        "message": "Garmin credentials not configured. Set GARMIN_EMAIL and GARMIN_PASSWORD environment variables.",
+    }
+)
 
 mcp = FastMCP("Garmin Connect MCP")
 
@@ -81,9 +83,7 @@ def get_recent_activities(
 
     limit = max(1, min(limit, _MAX_ACTIVITIES))
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, limit=limit, activity_type=activity_type)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, limit=limit, activity_type=activity_type))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -97,9 +97,7 @@ def get_activity_detail(activity_id: str) -> str:
 
     activity_id = _validate_activity_id(activity_id)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, activity_id=activity_id)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -139,9 +137,7 @@ def get_activity_typed_splits(activity_id: str) -> str:
 
     activity_id = _validate_activity_id(activity_id)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, activity_id=activity_id)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -155,9 +151,7 @@ def get_activity_split_summaries(activity_id: str) -> str:
 
     activity_id = _validate_activity_id(activity_id)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, activity_id=activity_id)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -171,9 +165,7 @@ def get_activity_weather(activity_id: str) -> str:
 
     activity_id = _validate_activity_id(activity_id)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, activity_id=activity_id)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -188,9 +180,7 @@ def get_activity_power_zones(activity_id: str) -> str:
 
     activity_id = _validate_activity_id(activity_id)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, activity_id=activity_id)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, activity_id=activity_id))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -207,9 +197,7 @@ def get_hrv_trend(days: int = 28) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -223,9 +211,7 @@ def get_sleep_history(days: int = 14) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -239,9 +225,7 @@ def get_body_battery(days: int = 7) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -255,9 +239,7 @@ def get_resting_hr_trend(days: int = 14) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -274,9 +256,7 @@ def get_daily_stats(cdate: str) -> str:
 
     cdate = _validate_date(cdate)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, cdate=cdate)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -291,9 +271,7 @@ def get_weekly_stress(end: str, weeks: int = 4) -> str:
     end = _validate_date(end)
     weeks = max(1, min(weeks, _MAX_WEEKS))
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, end=end, weeks=weeks)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, end=end, weeks=weeks))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -308,9 +286,7 @@ def get_weekly_intensity_minutes(end: str, weeks: int = 4) -> str:
     end = _validate_date(end)
     weeks = max(1, min(weeks, _MAX_WEEKS))
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, end=end, weeks=weeks)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, end=end, weeks=weeks))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -324,9 +300,7 @@ def get_heart_rates(cdate: str) -> str:
 
     cdate = _validate_date(cdate)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, cdate=cdate)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -340,9 +314,7 @@ def get_body_battery_events(cdate: str) -> str:
 
     cdate = _validate_date(cdate)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, cdate=cdate)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -356,9 +328,7 @@ def get_intensity_minutes(cdate: str) -> str:
 
     cdate = _validate_date(cdate)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, cdate=cdate)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -374,9 +344,7 @@ def get_training_status() -> str:
     from .tools.training import get_training_status as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -389,9 +357,7 @@ def get_race_predictions() -> str:
     from .tools.training import get_race_predictions as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -407,9 +373,7 @@ def get_weekly_summary(target_date: str | None = None) -> str:
     if target_date is not None:
         target_date = _validate_date(target_date)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, target_date=target_date)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, target_date=target_date))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -424,9 +388,7 @@ def get_recovery_snapshot() -> str:
     from .tools.training import get_recovery_snapshot as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -442,9 +404,7 @@ def get_morning_readiness(days: int = 7) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -458,9 +418,7 @@ def get_stress_data(days: int = 7) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -473,9 +431,7 @@ def get_max_metrics() -> str:
     from .tools.training import get_max_metrics as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -496,9 +452,7 @@ def get_endurance_score(
     from .tools.training import get_endurance_score as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, start_date=start_date, end_date=end_date)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, start_date=start_date, end_date=end_date))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -512,9 +466,7 @@ def get_lactate_threshold() -> str:
     from .tools.training import get_lactate_threshold as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -528,9 +480,7 @@ def get_fitness_age(cdate: str) -> str:
 
     cdate = _validate_date(cdate)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, cdate=cdate)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, cdate=cdate))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -545,9 +495,7 @@ def get_progress_summary(start_date: str, end_date: str) -> str:
     start_date = _validate_date(start_date)
     end_date = _validate_date(end_date)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, start_date=start_date, end_date=end_date)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, start_date=start_date, end_date=end_date))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -560,9 +508,7 @@ def get_personal_records() -> str:
     from .tools.training import get_personal_records as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -584,9 +530,7 @@ def get_workouts(start: int = 0, limit: int = 20) -> str:
     start = max(0, start)
     limit = max(1, min(limit, _MAX_WORKOUTS))
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, start=start, limit=limit)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, start=start, limit=limit))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -601,9 +545,7 @@ def get_workout_by_id(workout_id: str) -> str:
     if not _WORKOUT_ID_RE.match(workout_id):
         raise ValueError(f"Invalid workout_id: {workout_id!r}. Expected numeric ID.")
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, workout_id=workout_id)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, workout_id=workout_id))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -615,9 +557,7 @@ def get_training_plans() -> str:
     from .tools.workouts import get_training_plans as _get
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -668,9 +608,7 @@ def upload_running_workout(workout_name: str, steps: list[dict]) -> str:
     _validate_steps(steps)
 
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _upload(api, workout_name=workout_name, steps=steps)
-        )
+        result = _get_client().call_with_retry(lambda api: _upload(api, workout_name=workout_name, steps=steps))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -687,9 +625,7 @@ def get_weight_trend(days: int = 30) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -704,9 +640,7 @@ def get_body_composition(days: int = 30) -> str:
 
     days = _clamp_days(days)
     try:
-        result = _get_client().call_with_retry(
-            lambda api: _get(api, days=days)
-        )
+        result = _get_client().call_with_retry(lambda api: _get(api, days=days))
         return _to_json(result)
     except CredentialsNotConfiguredError:
         return NOT_CONFIGURED_MSG
@@ -734,6 +668,7 @@ class _SimpleOAuthProvider:
 
     async def authorize(self, client, params) -> str:
         from mcp.server.auth.provider import AuthorizationCode, construct_redirect_uri
+
         code = secrets.token_urlsafe(32)
         self._auth_codes[code] = AuthorizationCode(
             code=code,
@@ -752,6 +687,7 @@ class _SimpleOAuthProvider:
 
     async def exchange_authorization_code(self, client, authorization_code):
         from mcp.server.auth.provider import OAuthToken, RefreshToken
+
         del self._auth_codes[authorization_code.code]
         access = secrets.token_urlsafe(32)
         refresh = secrets.token_urlsafe(32)
@@ -761,7 +697,7 @@ class _SimpleOAuthProvider:
         )
         return OAuthToken(
             access_token=access,
-            token_type="Bearer",
+            token_type="Bearer",  # nosec B106
             expires_in=86400,
             scope=" ".join(authorization_code.scopes),
             refresh_token=refresh,
@@ -769,6 +705,7 @@ class _SimpleOAuthProvider:
 
     async def load_access_token(self, token: str):
         from mcp.server.auth.provider import AccessToken
+
         # Accept OAuth-issued tokens (fresh random tokens from exchange_authorization_code)
         scopes = self._access_tokens.get(token)
         if scopes is not None:
@@ -787,6 +724,7 @@ class _SimpleOAuthProvider:
 
     async def exchange_refresh_token(self, client, refresh_token, scopes):
         from mcp.server.auth.provider import OAuthToken, RefreshToken
+
         del self._refresh_tokens[refresh_token.token]
         access = secrets.token_urlsafe(32)
         new_refresh = secrets.token_urlsafe(32)
@@ -796,7 +734,7 @@ class _SimpleOAuthProvider:
         )
         return OAuthToken(
             access_token=access,
-            token_type="Bearer",
+            token_type="Bearer",  # nosec B106
             expires_in=86400,
             scope=" ".join(refresh_token.scopes),
             refresh_token=new_refresh,
@@ -804,6 +742,7 @@ class _SimpleOAuthProvider:
 
     async def revoke_token(self, token) -> None:
         from mcp.server.auth.provider import RefreshToken
+
         if isinstance(token, RefreshToken):
             self._refresh_tokens.pop(token.token, None)
         else:
@@ -872,8 +811,14 @@ class _RequestLogMiddleware:
             accept = headers.get(b"accept", b"").decode("utf-8", errors="replace")
             _logger.info(
                 "REQ  %s %s%s  ip=%s  auth=%s  accept=%s  origin=%s  ua=%s",
-                method, path, f"?{qs}" if qs else "",
-                client_ip, auth_preview, accept or "(none)", origin or "(none)", ua or "(none)",
+                method,
+                path,
+                f"?{qs}" if qs else "",
+                client_ip,
+                auth_preview,
+                accept or "(none)",
+                origin or "(none)",
+                ua or "(none)",
             )
 
             async def send_with_log(message):
@@ -885,12 +830,18 @@ class _RequestLogMiddleware:
                     if www_auth:
                         _logger.info(
                             "RSP  %s %s  status=%d  www-auth=%s",
-                            method, path, status, www_auth[:300],
+                            method,
+                            path,
+                            status,
+                            www_auth[:300],
                         )
                     else:
                         _logger.info(
                             "RSP  %s %s  status=%d  ct=%s",
-                            method, path, status, ct,
+                            method,
+                            path,
+                            status,
+                            ct,
                         )
                 await send(message)
 
@@ -1007,8 +958,9 @@ class _OAuthDiscoveryFixMiddleware:
                     body = b"".join(body_chunks)
                     body = self._patch(path, body)
                     # Rebuild content-length
-                    hdrs = [(k, v) for k, v in (captured_start or {}).get("headers", [])
-                            if k.lower() != b"content-length"]
+                    hdrs = [
+                        (k, v) for k, v in (captured_start or {}).get("headers", []) if k.lower() != b"content-length"
+                    ]
                     hdrs.append((b"content-length", str(len(body)).encode()))
                     await send({**(captured_start or {}), "headers": hdrs})
                     await send({"type": "http.response.body", "body": body, "more_body": False})
@@ -1037,9 +989,7 @@ class _OAuthDiscoveryFixMiddleware:
             if "resource" in data:
                 data["resource"] = str(data["resource"]).rstrip("/")
             if "authorization_servers" in data:
-                data["authorization_servers"] = [
-                    str(s).rstrip("/") for s in data["authorization_servers"]
-                ]
+                data["authorization_servers"] = [str(s).rstrip("/") for s in data["authorization_servers"]]
 
         _logger.info("DISCOVERY %s → %s", path, json.dumps(data))
         return json.dumps(data).encode()
@@ -1060,9 +1010,7 @@ class _TokenEndpointMiddleware:
         self._resource_url = resource_url
 
     async def __call__(self, scope, receive, send) -> None:
-        if (scope["type"] != "http"
-                or scope.get("path") != "/token"
-                or scope.get("method") != "POST"):
+        if scope["type"] != "http" or scope.get("path") != "/token" or scope.get("method") != "POST":
             await self._app(scope, receive, send)
             return
 
@@ -1076,11 +1024,9 @@ class _TokenEndpointMiddleware:
                 if not message.get("more_body", False):
                     req_body = b"".join(req_chunks)
                     if _DEBUG:
-                        _logger.info("TOKEN REQUEST body: %s",
-                                     req_body.decode("utf-8", errors="replace")[:500])
+                        _logger.info("TOKEN REQUEST body: %s", req_body.decode("utf-8", errors="replace")[:500])
                     else:
-                        _logger.info("TOKEN REQUEST body: (%d bytes, set MCP_DEBUG=true to log)",
-                                     len(req_body))
+                        _logger.info("TOKEN REQUEST body: (%d bytes, set MCP_DEBUG=true to log)", len(req_body))
             return message
 
         captured_start = None
@@ -1095,8 +1041,9 @@ class _TokenEndpointMiddleware:
                 if not message.get("more_body", False):
                     body = b"".join(body_chunks)
                     body = self._add_resource_and_log(body)
-                    hdrs = [(k, v) for k, v in (captured_start or {}).get("headers", [])
-                            if k.lower() != b"content-length"]
+                    hdrs = [
+                        (k, v) for k, v in (captured_start or {}).get("headers", []) if k.lower() != b"content-length"
+                    ]
                     hdrs.append((b"content-length", str(len(body)).encode()))
                     await send({**(captured_start or {}), "headers": hdrs})
                     await send({"type": "http.response.body", "body": body, "more_body": False})
@@ -1121,8 +1068,12 @@ class _TokenEndpointMiddleware:
         if _DEBUG:
             _logger.info("TOKEN RESPONSE: %s", result.decode()[:500])
         else:
-            _logger.info("TOKEN RESPONSE: token_type=%s scope=%s (%d bytes)",
-                         data.get("token_type", "?"), data.get("scope", "?"), len(result))
+            _logger.info(
+                "TOKEN RESPONSE: token_type=%s scope=%s (%d bytes)",
+                data.get("token_type", "?"),
+                data.get("scope", "?"),
+                len(result),
+            )
         return result
 
 
@@ -1167,13 +1118,11 @@ class _Fix401Middleware:
                         v_str = self._RE_ERROR.sub("", v_str)
                         v_str = self._RE_ERROR_DESC.sub("", v_str)
                         # Clean up any stray "Bearer ," left after removals
-                        v_str = re.sub(r'(?i)(bearer)\s*,\s*', r'\1 ', v_str).strip()
+                        v_str = re.sub(r"(?i)(bearer)\s*,\s*", r"\1 ", v_str).strip()
                         # Prepend realm= for RFC compliance
                         if v_str.lower().startswith("bearer"):
-                            rest = v_str[len("bearer"):].strip()
-                            v_str = "Bearer " + self._REALM.decode() + (
-                                ", " + rest if rest else ""
-                            )
+                            rest = v_str[len("bearer") :].strip()
+                            v_str = "Bearer " + self._REALM.decode() + (", " + rest if rest else "")
                         hdrs.append((k, v_str.encode()))
                     else:
                         hdrs.append((k, v))
@@ -1201,14 +1150,16 @@ class _BearerAuthMiddleware:
             if auth != f"Bearer {self._api_key}":
                 if scope["type"] == "http":
                     body = b"Unauthorized"
-                    await send({
-                        "type": "http.response.start",
-                        "status": 401,
-                        "headers": [
-                            (b"content-type", b"text/plain"),
-                            (b"content-length", str(len(body)).encode()),
-                        ],
-                    })
+                    await send(
+                        {
+                            "type": "http.response.start",
+                            "status": 401,
+                            "headers": [
+                                (b"content-type", b"text/plain"),
+                                (b"content-length", str(len(body)).encode()),
+                            ],
+                        }
+                    )
                     await send({"type": "http.response.body", "body": body, "more_body": False})
                 return
         await self._app(scope, receive, send)
@@ -1292,9 +1243,7 @@ class _TOTPGateMiddleware:
             import pyotp
 
             if pyotp.TOTP(self._totp_secret).verify(totp_code):
-                oauth_params = {
-                    k: v[0] for k, v in form_data.items() if k != "totp_code"
-                }
+                oauth_params = {k: v[0] for k, v in form_data.items() if k != "totp_code"}
                 new_qs = urlencode(oauth_params)
                 new_scope = {**scope, "method": "GET", "query_string": new_qs.encode()}
                 return await self._app(new_scope, receive, send)
@@ -1308,20 +1257,14 @@ class _TOTPGateMiddleware:
 
     # ------------------------------------------------------------------
 
-    def _render_form(
-        self, params: dict[str, list[str]], error: str | None
-    ) -> bytes:
+    def _render_form(self, params: dict[str, list[str]], error: str | None) -> bytes:
         hidden_fields: list[str] = []
         for key, values in params.items():
             for val in values:
                 safe_key = _html_mod.escape(key)
                 safe_val = _html_mod.escape(val)
-                hidden_fields.append(
-                    f'<input type="hidden" name="{safe_key}" value="{safe_val}">'
-                )
-        error_html = (
-            f'<p class="error">{_html_mod.escape(error)}</p>' if error else ""
-        )
+                hidden_fields.append(f'<input type="hidden" name="{safe_key}" value="{safe_val}">')
+        error_html = f'<p class="error">{_html_mod.escape(error)}</p>' if error else ""
         return _TOTP_FORM_TEMPLATE.format(
             hidden_fields="\n      ".join(hidden_fields),
             error_html=error_html,
@@ -1365,7 +1308,8 @@ def main():
     mode = os.environ.get("MCP_MODE", "stdio")
     if mode == "sse":
         from mcp.server.transport_security import TransportSecuritySettings
-        mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")
+
+        mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")  # nosec B104
         mcp.settings.port = int(os.environ.get("MCP_PORT", "8000"))
         api_key = os.environ.get("MCP_API_KEY", "").strip()
         if api_key:
@@ -1380,9 +1324,7 @@ def main():
             allowed_hosts = [server_host]
             extra_hosts = os.environ.get("MCP_ALLOWED_HOSTS", "").strip()
             if extra_hosts:
-                allowed_hosts.extend(
-                    h.strip() for h in extra_hosts.split(",") if h.strip()
-                )
+                allowed_hosts.extend(h.strip() for h in extra_hosts.split(",") if h.strip())
             mcp.settings.transport_security = TransportSecuritySettings(
                 enable_dns_rebinding_protection=True,
                 allowed_hosts=allowed_hosts,
@@ -1412,16 +1354,12 @@ def main():
 
             async def _run() -> None:
                 _logger.info("TOTP gate enabled on /authorize")
-                inner_app = _TOTPGateMiddleware(
-                    mcp.streamable_http_app(), totp_secret
-                )
+                inner_app = _TOTPGateMiddleware(mcp.streamable_http_app(), totp_secret)
                 app = _RequestLogMiddleware(
                     _CORSMiddleware(
                         _OAuthDiscoveryFixMiddleware(
                             _TokenEndpointMiddleware(
-                                _AcceptHeaderMiddleware(
-                                    _Fix401Middleware(inner_app)
-                                ),
+                                _AcceptHeaderMiddleware(_Fix401Middleware(inner_app)),
                                 resource_url=server_url + "/mcp",
                             )
                         )
@@ -1440,20 +1378,13 @@ def main():
             import anyio
             import uvicorn
 
-            mcp.settings.transport_security = TransportSecuritySettings(
-                enable_dns_rebinding_protection=False
-            )
+            mcp.settings.transport_security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
             _logger.warning(
-                "MCP_API_KEY not set — endpoint is unauthenticated. "
-                "Set MCP_API_KEY to require Bearer token auth."
+                "MCP_API_KEY not set — endpoint is unauthenticated. Set MCP_API_KEY to require Bearer token auth."
             )
 
             async def _run_open() -> None:
-                app = _RequestLogMiddleware(
-                    _CORSMiddleware(
-                        _AcceptHeaderMiddleware(mcp.streamable_http_app())
-                    )
-                )
+                app = _RequestLogMiddleware(_CORSMiddleware(_AcceptHeaderMiddleware(mcp.streamable_http_app())))
                 config = uvicorn.Config(
                     app,
                     host=mcp.settings.host,

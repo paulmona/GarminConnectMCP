@@ -20,12 +20,8 @@ class Settings:
         email = os.environ.get("GARMIN_EMAIL", "").strip()
         password = os.environ.get("GARMIN_PASSWORD", "").strip()
         if not email or not password:
-            raise CredentialsNotConfiguredError(
-                "GARMIN_EMAIL and GARMIN_PASSWORD environment variables must be set."
-            )
-        session_dir = Path(
-            os.environ.get("GARMIN_SESSION_DIR", "config/.session")
-        ).resolve()
+            raise CredentialsNotConfiguredError("GARMIN_EMAIL and GARMIN_PASSWORD environment variables must be set.")
+        session_dir = Path(os.environ.get("GARMIN_SESSION_DIR", "config/.session")).resolve()
         return cls(
             garmin_email=email,
             garmin_password=password,

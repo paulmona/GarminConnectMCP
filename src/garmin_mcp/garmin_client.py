@@ -66,9 +66,7 @@ class GarminClient:
             self._save_tokens(client, token_path)
             return client
         except Exception:
-            logger.warning(
-                "Cached token login failed, attempting fresh login"
-            )
+            logger.warning("Cached token login failed, attempting fresh login")
 
         # Retry with fresh credentials (no tokenstore)
         try:
@@ -80,9 +78,7 @@ class GarminClient:
             GarminConnectAuthenticationError,
             GarminConnectConnectionError,
         ) as exc:
-            raise GarminConnectAuthenticationError(
-                "Failed to authenticate with Garmin Connect after retry"
-            ) from exc
+            raise GarminConnectAuthenticationError("Failed to authenticate with Garmin Connect after retry") from exc
 
     @staticmethod
     def _save_tokens(client: Garmin, token_path: str) -> None:

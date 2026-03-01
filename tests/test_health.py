@@ -1,6 +1,6 @@
 """Tests for garmin_mcp.tools.health."""
 
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from garmin_mcp.tools.health import (
@@ -18,11 +18,10 @@ from garmin_mcp.tools.health import (
     get_weekly_stress,
 )
 
-
 # --- _date_range ---
 
-class TestDateRange:
 
+class TestDateRange:
     @patch("garmin_mcp.tools.health.date")
     def test_returns_correct_number_of_dates(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 15)
@@ -47,8 +46,8 @@ class TestDateRange:
 
 # --- get_hrv_trend ---
 
-class TestGetHrvTrend:
 
+class TestGetHrvTrend:
     @patch("garmin_mcp.tools.health._date_range")
     def test_returns_hrv_data(self, mock_range):
         mock_range.return_value = ["2025-01-03", "2025-01-02", "2025-01-01"]
@@ -113,9 +112,7 @@ class TestGetHrvTrend:
     def test_rolling_avg_none_with_insufficient_data(self, mock_range):
         mock_range.return_value = ["2025-01-03", "2025-01-02", "2025-01-01"]
         api = MagicMock()
-        api.get_hrv_data.return_value = {
-            "hrvSummary": {"lastNightAvg": 40}
-        }
+        api.get_hrv_data.return_value = {"hrvSummary": {"lastNightAvg": 40}}
 
         result = get_hrv_trend(api, days=3)
 
@@ -124,8 +121,8 @@ class TestGetHrvTrend:
 
 # --- get_sleep_history ---
 
-class TestGetSleepHistory:
 
+class TestGetSleepHistory:
     @patch("garmin_mcp.tools.health._date_range")
     def test_returns_sleep_data(self, mock_range):
         mock_range.return_value = ["2025-01-02", "2025-01-01"]
@@ -170,8 +167,8 @@ class TestGetSleepHistory:
 
 # --- get_body_battery ---
 
-class TestGetBodyBattery:
 
+class TestGetBodyBattery:
     @patch("garmin_mcp.tools.health.date")
     def test_returns_body_battery_data(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 7)
@@ -217,17 +214,15 @@ class TestGetBodyBattery:
 
 # --- get_resting_hr_trend ---
 
-class TestGetRestingHrTrend:
 
+class TestGetRestingHrTrend:
     @patch("garmin_mcp.tools.health._date_range")
     def test_returns_rhr_values(self, mock_range):
         mock_range.return_value = ["2025-01-02", "2025-01-01"]
         api = MagicMock()
         api.get_rhr_day.return_value = {
             "allMetrics": {
-                "metricsMap": {
-                    "WELLNESS_RESTING_HEART_RATE": [{"value": 58.0, "calendarDate": "2025-01-02"}]
-                }
+                "metricsMap": {"WELLNESS_RESTING_HEART_RATE": [{"value": 58.0, "calendarDate": "2025-01-02"}]}
             }
         }
 
@@ -240,9 +235,7 @@ class TestGetRestingHrTrend:
     def test_handles_empty_rhr_metrics(self, mock_range):
         mock_range.return_value = ["2025-01-01"]
         api = MagicMock()
-        api.get_rhr_day.return_value = {
-            "allMetrics": {"metricsMap": {"WELLNESS_RESTING_HEART_RATE": []}}
-        }
+        api.get_rhr_day.return_value = {"allMetrics": {"metricsMap": {"WELLNESS_RESTING_HEART_RATE": []}}}
 
         result = get_resting_hr_trend(api, days=1)
 
@@ -271,8 +264,8 @@ class TestGetRestingHrTrend:
 
 # --- get_stress_data ---
 
-class TestGetStressData:
 
+class TestGetStressData:
     @patch("garmin_mcp.tools.health._date_range")
     def test_returns_stress_data(self, mock_range):
         mock_range.return_value = ["2025-01-02", "2025-01-01"]
@@ -319,8 +312,8 @@ class TestGetStressData:
 
 # --- get_intensity_minutes ---
 
-class TestGetIntensityMinutes:
 
+class TestGetIntensityMinutes:
     def test_returns_intensity_minutes(self):
         api = MagicMock()
         api.get_intensity_minutes_data.return_value = {
@@ -353,8 +346,8 @@ class TestGetIntensityMinutes:
 
 # --- get_body_battery_events ---
 
-class TestGetBodyBatteryEvents:
 
+class TestGetBodyBatteryEvents:
     def test_returns_events(self):
         api = MagicMock()
         api.get_body_battery_events.return_value = [
@@ -397,8 +390,8 @@ class TestGetBodyBatteryEvents:
 
 # --- get_heart_rates ---
 
-class TestGetHeartRates:
 
+class TestGetHeartRates:
     def test_returns_heart_rate_data(self):
         api = MagicMock()
         api.get_heart_rates.return_value = {
@@ -448,8 +441,8 @@ class TestGetHeartRates:
 
 # --- get_daily_stats ---
 
-class TestGetDailyStats:
 
+class TestGetDailyStats:
     def test_returns_stats(self):
         api = MagicMock()
         api.get_stats.return_value = {
@@ -478,8 +471,8 @@ class TestGetDailyStats:
 
 # --- get_weekly_stress ---
 
-class TestGetWeeklyStress:
 
+class TestGetWeeklyStress:
     def test_returns_weekly_stress(self):
         api = MagicMock()
         api.get_weekly_stress.return_value = {"weeks": [{"avg": 35}]}
@@ -504,8 +497,8 @@ class TestGetWeeklyStress:
 
 # --- get_weekly_intensity_minutes ---
 
-class TestGetWeeklyIntensityMinutes:
 
+class TestGetWeeklyIntensityMinutes:
     def test_returns_weekly_data(self):
         api = MagicMock()
         api.get_weekly_intensity_minutes.return_value = {"weeks": [{"total": 150}]}

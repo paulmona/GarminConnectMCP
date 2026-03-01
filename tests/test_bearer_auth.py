@@ -1,15 +1,15 @@
 """Tests for the Bearer token auth ASGI middleware."""
 
-import pytest
-
 
 async def _simple_app(scope, receive, send):
     """Minimal ASGI app that always returns 200 OK."""
-    await send({
-        "type": "http.response.start",
-        "status": 200,
-        "headers": [(b"content-type", b"text/plain")],
-    })
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-type", b"text/plain")],
+        }
+    )
     await send({"type": "http.response.body", "body": b"OK", "more_body": False})
 
 
@@ -38,6 +38,7 @@ async def _collect_response(middleware, scope):
 class TestBearerAuthMiddleware:
     def test_valid_token_passes(self):
         import asyncio
+
         from garmin_mcp.server import _BearerAuthMiddleware
 
         mw = _BearerAuthMiddleware(_simple_app, "secret123")
@@ -47,6 +48,7 @@ class TestBearerAuthMiddleware:
 
     def test_wrong_token_returns_401(self):
         import asyncio
+
         from garmin_mcp.server import _BearerAuthMiddleware
 
         mw = _BearerAuthMiddleware(_simple_app, "secret123")
@@ -56,6 +58,7 @@ class TestBearerAuthMiddleware:
 
     def test_missing_auth_header_returns_401(self):
         import asyncio
+
         from garmin_mcp.server import _BearerAuthMiddleware
 
         mw = _BearerAuthMiddleware(_simple_app, "secret123")
@@ -65,6 +68,7 @@ class TestBearerAuthMiddleware:
 
     def test_basic_auth_scheme_rejected(self):
         import asyncio
+
         from garmin_mcp.server import _BearerAuthMiddleware
 
         mw = _BearerAuthMiddleware(_simple_app, "secret123")
@@ -75,6 +79,7 @@ class TestBearerAuthMiddleware:
     def test_non_http_scope_passed_through(self):
         """Lifespan and other non-http scopes bypass auth."""
         import asyncio
+
         from garmin_mcp.server import _BearerAuthMiddleware
 
         reached = []

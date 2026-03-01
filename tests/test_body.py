@@ -5,11 +5,10 @@ from unittest.mock import MagicMock, patch
 
 from garmin_mcp.tools.body import get_body_composition, get_weight_trend
 
-
 # --- get_weight_trend ---
 
-class TestGetWeightTrend:
 
+class TestGetWeightTrend:
     @patch("garmin_mcp.tools.body.date")
     def test_returns_weight_entries(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 30)
@@ -33,9 +32,7 @@ class TestGetWeightTrend:
         mock_date.today.return_value = date(2025, 1, 30)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
-        api.get_weigh_ins.return_value = {
-            "dailyWeightSummaries": [{"calendarDate": "2025-01-30", "weight": 75000}]
-        }
+        api.get_weigh_ins.return_value = {"dailyWeightSummaries": [{"calendarDate": "2025-01-30", "weight": 75000}]}
 
         result = get_weight_trend(api, days=30)
 
@@ -46,9 +43,7 @@ class TestGetWeightTrend:
         mock_date.today.return_value = date(2025, 1, 30)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
-        api.get_weigh_ins.return_value = {
-            "dailyWeightSummaries": [{"calendarDate": "2025-01-30", "weight": 100000}]
-        }
+        api.get_weigh_ins.return_value = {"dailyWeightSummaries": [{"calendarDate": "2025-01-30", "weight": 100000}]}
 
         result = get_weight_trend(api, days=30)
 
@@ -106,8 +101,8 @@ def pytest_approx_220():
 
 # --- get_body_composition ---
 
-class TestGetBodyComposition:
 
+class TestGetBodyComposition:
     @patch("garmin_mcp.tools.body.date")
     def test_returns_composition_entries(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 30)

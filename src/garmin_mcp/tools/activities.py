@@ -59,17 +59,17 @@ def get_activity_detail(
         laps = []
         for split in (splits_data or {}).get("lapDTOs", []):
             distance_m = split.get("distance")
-            laps.append({
-                "lap_number": split.get("lapIndex"),
-                "distance_km": (
-                    round(distance_m / 1000, 2) if distance_m else None
-                ),
-                "duration_seconds": split.get("duration"),
-                "avg_hr": split.get("averageHR"),
-                "max_hr": split.get("maxHR"),
-                "avg_pace": _format_pace(split.get("averageSpeed")),
-                "calories": split.get("calories"),
-            })
+            laps.append(
+                {
+                    "lap_number": split.get("lapIndex"),
+                    "distance_km": (round(distance_m / 1000, 2) if distance_m else None),
+                    "duration_seconds": split.get("duration"),
+                    "avg_hr": split.get("averageHR"),
+                    "max_hr": split.get("maxHR"),
+                    "avg_pace": _format_pace(split.get("averageSpeed")),
+                    "calories": split.get("calories"),
+                }
+            )
         base["laps"] = laps
     except Exception:
         base["laps"] = []
@@ -80,12 +80,14 @@ def get_activity_detail(
         zones = []
         for zone_list in hr_zones_data or []:
             for z in zone_list.get("zones", []):
-                zones.append({
-                    "zone": z.get("zoneNumber"),
-                    "zone_low_hr": z.get("zoneLowBoundary"),
-                    "zone_high_hr": z.get("zoneHighBoundary"),
-                    "seconds_in_zone": z.get("secsInZone"),
-                })
+                zones.append(
+                    {
+                        "zone": z.get("zoneNumber"),
+                        "zone_low_hr": z.get("zoneLowBoundary"),
+                        "zone_high_hr": z.get("zoneHighBoundary"),
+                        "seconds_in_zone": z.get("secsInZone"),
+                    }
+                )
             if zones:
                 break  # Only take the first set
         base["hr_zones"] = zones
@@ -102,9 +104,7 @@ def get_activities_in_range(
     activity_type: str | None = None,
 ) -> list[dict[str, Any]]:
     """Get activities between start_date and end_date (YYYY-MM-DD)."""
-    activities = api.get_activities_by_date(
-        start_date, end_date, activitytype=activity_type
-    )
+    activities = api.get_activities_by_date(start_date, end_date, activitytype=activity_type)
     if not activities:
         return []
     return [_summarize_activity(a) for a in activities]

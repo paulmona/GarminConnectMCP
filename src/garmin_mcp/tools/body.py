@@ -27,12 +27,14 @@ def get_weight_trend(
             weight_kg = entry.get("weight")
             if weight_kg is not None:
                 weight_kg = round(weight_kg / 1000, 2)  # grams → kg
-            entries.append({
-                "date": entry.get("calendarDate"),
-                "weight_kg": weight_kg,
-                "weight_lbs": round(weight_kg * 2.20462, 1) if weight_kg else None,
-                "bmi": entry.get("bmi"),
-            })
+            entries.append(
+                {
+                    "date": entry.get("calendarDate"),
+                    "weight_kg": weight_kg,
+                    "weight_lbs": round(weight_kg * 2.20462, 1) if weight_kg else None,
+                    "bmi": entry.get("bmi"),
+                }
+            )
 
     # Summary stats
     weights = [e["weight_kg"] for e in entries if e["weight_kg"] is not None]
@@ -77,30 +79,32 @@ def get_body_composition(
             weight_kg = entry.get("weight")
             if weight_kg is not None:
                 weight_kg = round(weight_kg / 1000, 2)  # grams → kg
-            entries.append({
-                "date": entry.get("calendarDate"),
-                "weight_kg": weight_kg,
-                "bmi": entry.get("bmi"),
-                "body_fat_pct": entry.get("bodyFat"),
-                "body_water_pct": entry.get("bodyWater"),
-                "bone_mass_kg": round(entry["boneMass"] / 1000, 2)
-                    if entry.get("boneMass") else None,
-                "muscle_mass_kg": round(entry["muscleMass"] / 1000, 2)
-                    if entry.get("muscleMass") else None,
-                "visceral_fat": entry.get("visceralFat"),
-                "metabolic_age": entry.get("metabolicAge"),
-            })
+            entries.append(
+                {
+                    "date": entry.get("calendarDate"),
+                    "weight_kg": weight_kg,
+                    "bmi": entry.get("bmi"),
+                    "body_fat_pct": entry.get("bodyFat"),
+                    "body_water_pct": entry.get("bodyWater"),
+                    "bone_mass_kg": round(entry["boneMass"] / 1000, 2) if entry.get("boneMass") else None,
+                    "muscle_mass_kg": round(entry["muscleMass"] / 1000, 2) if entry.get("muscleMass") else None,
+                    "visceral_fat": entry.get("visceralFat"),
+                    "metabolic_age": entry.get("metabolicAge"),
+                }
+            )
 
         return {
             "days_requested": days,
             "period_average": {
-                "weight_kg": round(total_average["weight"] / 1000, 2)
-                    if total_average.get("weight") else None,
+                "weight_kg": round(total_average["weight"] / 1000, 2) if total_average.get("weight") else None,
                 "bmi": total_average.get("bmi"),
                 "body_fat_pct": total_average.get("bodyFat"),
                 "muscle_mass_kg": round(total_average["muscleMass"] / 1000, 2)
-                    if total_average.get("muscleMass") else None,
-            } if total_average else None,
+                if total_average.get("muscleMass")
+                else None,
+            }
+            if total_average
+            else None,
             "entries": entries,
         }
 

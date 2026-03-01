@@ -25,37 +25,27 @@ def get_hrv_trend(
             data = api.get_hrv_data(d)
             if data and data.get("hrvSummary"):
                 summary = data["hrvSummary"]
-                daily_values.append({
-                    "date": d,
-                    "weekly_avg": summary.get("weeklyAvg"),
-                    "last_night": summary.get("lastNight"),
-                    "last_night_avg": summary.get("lastNightAvg"),
-                    "last_night_5_min_high": summary.get("lastNight5MinHigh"),
-                    "baseline_low": summary.get("baselineLowUpper"),
-                    "baseline_balanced_low": summary.get(
-                        "baselineBalancedLow"
-                    ),
-                    "baseline_balanced_upper": summary.get(
-                        "baselineBalancedUpper"
-                    ),
-                    "status": summary.get("status"),
-                })
+                daily_values.append(
+                    {
+                        "date": d,
+                        "weekly_avg": summary.get("weeklyAvg"),
+                        "last_night": summary.get("lastNight"),
+                        "last_night_avg": summary.get("lastNightAvg"),
+                        "last_night_5_min_high": summary.get("lastNight5MinHigh"),
+                        "baseline_low": summary.get("baselineLowUpper"),
+                        "baseline_balanced_low": summary.get("baselineBalancedLow"),
+                        "baseline_balanced_upper": summary.get("baselineBalancedUpper"),
+                        "status": summary.get("status"),
+                    }
+                )
             else:
                 daily_values.append({"date": d, "weekly_avg": None})
         except Exception:
             daily_values.append({"date": d, "weekly_avg": None})
 
     # Compute 7-day rolling average
-    valid_vals = [
-        v["last_night_avg"]
-        for v in daily_values
-        if v.get("last_night_avg") is not None
-    ]
-    rolling_avg_7d = (
-        round(sum(valid_vals[-7:]) / len(valid_vals[-7:]), 1)
-        if len(valid_vals) >= 7
-        else None
-    )
+    valid_vals = [v["last_night_avg"] for v in daily_values if v.get("last_night_avg") is not None]
+    rolling_avg_7d = round(sum(valid_vals[-7:]) / len(valid_vals[-7:]), 1) if len(valid_vals) >= 7 else None
 
     return {
         "days_requested": days,
@@ -80,23 +70,17 @@ def get_sleep_history(
                 continue
 
             daily_sleep = data.get("dailySleepDTO", {})
-            results.append({
-                "date": d,
-                "sleep_score": daily_sleep.get(
-                    "sleepScores", {}
-                ).get("overall", {}).get("value"),
-                "total_sleep_seconds": daily_sleep.get(
-                    "sleepTimeSeconds"
-                ),
-                "deep_sleep_seconds": daily_sleep.get(
-                    "deepSleepSeconds"
-                ),
-                "light_sleep_seconds": daily_sleep.get(
-                    "lightSleepSeconds"
-                ),
-                "rem_sleep_seconds": daily_sleep.get("remSleepSeconds"),
-                "awake_seconds": daily_sleep.get("awakeSleepSeconds"),
-            })
+            results.append(
+                {
+                    "date": d,
+                    "sleep_score": daily_sleep.get("sleepScores", {}).get("overall", {}).get("value"),
+                    "total_sleep_seconds": daily_sleep.get("sleepTimeSeconds"),
+                    "deep_sleep_seconds": daily_sleep.get("deepSleepSeconds"),
+                    "light_sleep_seconds": daily_sleep.get("lightSleepSeconds"),
+                    "rem_sleep_seconds": daily_sleep.get("remSleepSeconds"),
+                    "awake_seconds": daily_sleep.get("awakeSleepSeconds"),
+                }
+            )
         except Exception:
             results.append({"date": d, "sleep_score": None})
 
@@ -122,18 +106,18 @@ def get_body_battery(
 
     results: list[dict[str, Any]] = []
     for day_data in data:
-        results.append({
-            "date": day_data.get("calendarDate"),
-            "charged": day_data.get("charged"),
-            "drained": day_data.get("drained"),
-            "start_level": day_data.get("startTimestampGMT"),
-            "end_level": day_data.get("endTimestampGMT"),
-            "highest": day_data.get("bodyBatteryHighestValue"),
-            "lowest": day_data.get("bodyBatteryLowestValue"),
-            "most_recent": day_data.get(
-                "bodyBatteryMostRecentValue"
-            ),
-        })
+        results.append(
+            {
+                "date": day_data.get("calendarDate"),
+                "charged": day_data.get("charged"),
+                "drained": day_data.get("drained"),
+                "start_level": day_data.get("startTimestampGMT"),
+                "end_level": day_data.get("endTimestampGMT"),
+                "highest": day_data.get("bodyBatteryHighestValue"),
+                "lowest": day_data.get("bodyBatteryLowestValue"),
+                "most_recent": day_data.get("bodyBatteryMostRecentValue"),
+            }
+        )
     return results
 
 
@@ -199,18 +183,20 @@ def get_stress_data(
         try:
             data = api.get_all_day_stress(d)
             if data:
-                results.append({
-                    "date": d,
-                    "overall_stress_level": data.get("overallStressLevel"),
-                    "rest_stress_duration": data.get("restStressDuration"),
-                    "activity_stress_duration": data.get("activityStressDuration"),
-                    "uncategorized_stress_duration": data.get("uncategorizedStressDuration"),
-                    "total_stress_duration": data.get("totalStressDuration"),
-                    "low_stress_duration": data.get("lowStressDuration"),
-                    "medium_stress_duration": data.get("mediumStressDuration"),
-                    "high_stress_duration": data.get("highStressDuration"),
-                    "stress_qualifier": data.get("stressQualifier"),
-                })
+                results.append(
+                    {
+                        "date": d,
+                        "overall_stress_level": data.get("overallStressLevel"),
+                        "rest_stress_duration": data.get("restStressDuration"),
+                        "activity_stress_duration": data.get("activityStressDuration"),
+                        "uncategorized_stress_duration": data.get("uncategorizedStressDuration"),
+                        "total_stress_duration": data.get("totalStressDuration"),
+                        "low_stress_duration": data.get("lowStressDuration"),
+                        "medium_stress_duration": data.get("mediumStressDuration"),
+                        "high_stress_duration": data.get("highStressDuration"),
+                        "stress_qualifier": data.get("stressQualifier"),
+                    }
+                )
             else:
                 results.append({"date": d, "overall_stress_level": None})
         except Exception:
@@ -269,13 +255,15 @@ def get_body_battery_events(
     for event in data if isinstance(data, list) else [data]:
         if not isinstance(event, dict):
             continue
-        events.append({
-            "event_type": event.get("eventType"),
-            "title": event.get("title"),
-            "impact": event.get("impact"),
-            "duration_seconds": event.get("durationInSeconds"),
-            "body_battery_change": event.get("bodyBatteryChange"),
-        })
+        events.append(
+            {
+                "event_type": event.get("eventType"),
+                "title": event.get("title"),
+                "impact": event.get("impact"),
+                "duration_seconds": event.get("durationInSeconds"),
+                "body_battery_change": event.get("bodyBatteryChange"),
+            }
+        )
 
     return {"date": cdate, "events": events}
 
@@ -315,11 +303,7 @@ def get_resting_hr_trend(
             data = api.get_rhr_day(d)
             rhr = None
             if data and isinstance(data, dict):
-                rhr_list = (
-                    data.get("allMetrics", {})
-                    .get("metricsMap", {})
-                    .get("WELLNESS_RESTING_HEART_RATE", [])
-                )
+                rhr_list = data.get("allMetrics", {}).get("metricsMap", {}).get("WELLNESS_RESTING_HEART_RATE", [])
                 if rhr_list:
                     raw = rhr_list[0].get("value")
                     rhr = int(raw) if raw is not None else None
