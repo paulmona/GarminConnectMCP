@@ -1,5 +1,6 @@
 """MCP server exposing Garmin Connect data for Hyrox training analysis."""
 
+import html as _html_mod
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import secrets
 import time
 from datetime import date
 from typing import Any
+from urllib.parse import parse_qs, urlencode
 
 _logger = logging.getLogger(__name__)
 
@@ -787,6 +789,145 @@ class _BearerAuthMiddleware:
         await self._app(scope, receive, send)
 
 
+_TOTP_FORM_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Garmin MCP — Verify Access</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+           display: flex; justify-content: center; align-items: center;
+           min-height: 100vh; margin: 0; background: #f5f5f5; }}
+    .card {{ background: #fff; padding: 2rem; border-radius: 8px;
+             box-shadow: 0 2px 8px rgba(0,0,0,.1); max-width: 360px;
+             width: 100%; text-align: center; }}
+    h1 {{ font-size: 1.3rem; margin-bottom: 0.5rem; }}
+    p {{ color: #555; font-size: 0.9rem; }}
+    input[type="text"] {{ font-size: 1.5rem; text-align: center;
+                          letter-spacing: 0.3em; width: 8em; padding: 0.5rem;
+                          border: 2px solid #ccc; border-radius: 4px;
+                          margin: 1rem 0; }}
+    input[type="text"]:focus {{ border-color: #2563eb; outline: none; }}
+    button {{ background: #2563eb; color: #fff; border: none; padding: 0.7rem 2rem;
+              border-radius: 4px; font-size: 1rem; cursor: pointer; }}
+    button:hover {{ background: #1d4ed8; }}
+    .error {{ color: #dc2626; font-size: 0.9rem; margin-bottom: 0.5rem; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Garmin Connect MCP</h1>
+    <p>Enter the 6-digit code from your authenticator app.</p>
+    {error_html}
+    <form method="POST" action="/authorize">
+      {hidden_fields}
+      <input type="text" name="totp_code" maxlength="6" pattern="[0-9]{{6}}"
+             inputmode="numeric" autocomplete="one-time-code" autofocus
+             placeholder="000000" required>
+      <br>
+      <button type="submit">Verify</button>
+    </form>
+  </div>
+</body>
+</html>"""
+
+
+class _TOTPGateMiddleware:
+    """Intercept GET/POST /authorize to require TOTP verification.
+
+    When MCP_TOTP_SECRET is configured, this middleware renders an HTML form
+    on GET /authorize and validates the submitted TOTP code on POST.  If valid,
+    the request is forwarded to the inner app as a reconstructed GET with the
+    original OAuth query parameters.
+    """
+
+    def __init__(self, app, totp_secret: str) -> None:
+        self._app = app
+        self._totp_secret = totp_secret
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or scope.get("path") != "/authorize":
+            return await self._app(scope, receive, send)
+
+        method = scope.get("method", "")
+
+        if method == "GET":
+            qs = scope.get("query_string", b"").decode()
+            params = parse_qs(qs, keep_blank_values=True)
+            body = self._render_form(params, error=None)
+            await self._send_html(send, body)
+            return
+
+        if method == "POST":
+            raw_body = await self._read_body(receive)
+            form_data = parse_qs(raw_body.decode(), keep_blank_values=True)
+            totp_code = form_data.get("totp_code", [""])[0].strip()
+
+            import pyotp
+
+            if pyotp.TOTP(self._totp_secret).verify(totp_code):
+                oauth_params = {
+                    k: v[0] for k, v in form_data.items() if k != "totp_code"
+                }
+                new_qs = urlencode(oauth_params)
+                new_scope = {**scope, "method": "GET", "query_string": new_qs.encode()}
+                return await self._app(new_scope, receive, send)
+
+            params = {k: v for k, v in form_data.items() if k != "totp_code"}
+            body = self._render_form(params, error="Invalid code. Please try again.")
+            await self._send_html(send, body)
+            return
+
+        await self._app(scope, receive, send)
+
+    # ------------------------------------------------------------------
+
+    def _render_form(
+        self, params: dict[str, list[str]], error: str | None
+    ) -> bytes:
+        hidden_fields: list[str] = []
+        for key, values in params.items():
+            for val in values:
+                safe_key = _html_mod.escape(key)
+                safe_val = _html_mod.escape(val)
+                hidden_fields.append(
+                    f'<input type="hidden" name="{safe_key}" value="{safe_val}">'
+                )
+        error_html = (
+            f'<p class="error">{_html_mod.escape(error)}</p>' if error else ""
+        )
+        return _TOTP_FORM_TEMPLATE.format(
+            hidden_fields="\n      ".join(hidden_fields),
+            error_html=error_html,
+        ).encode()
+
+    @staticmethod
+    async def _read_body(receive) -> bytes:
+        chunks: list[bytes] = []
+        while True:
+            message = await receive()
+            chunks.append(message.get("body", b""))
+            if not message.get("more_body", False):
+                break
+        return b"".join(chunks)
+
+    @staticmethod
+    async def _send_html(send, body: bytes) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    (b"content-type", b"text/html; charset=utf-8"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body, "more_body": False})
+
+
 def main():
     """Start the MCP server.
 
@@ -827,12 +968,17 @@ def main():
             )
 
             async def _run() -> None:
+                totp_secret = os.environ.get("MCP_TOTP_SECRET", "").strip()
+                inner_app = mcp.streamable_http_app()
+                if totp_secret:
+                    _logger.info("TOTP gate enabled on /authorize")
+                    inner_app = _TOTPGateMiddleware(inner_app, totp_secret)
                 app = _RequestLogMiddleware(
                     _CORSMiddleware(
                         _OAuthDiscoveryFixMiddleware(
                             _TokenEndpointMiddleware(
                                 _AcceptHeaderMiddleware(
-                                    _Fix401Middleware(mcp.streamable_http_app())
+                                    _Fix401Middleware(inner_app)
                                 ),
                                 resource_url=server_url + "/mcp",
                             )
