@@ -224,3 +224,131 @@ def get_recovery_snapshot(
         result["readiness_score"] = None
 
     return result
+
+
+def get_morning_readiness(
+    api: Garmin,
+    days: int = 7,
+) -> list[dict[str, Any]]:
+    """Get morning training readiness over recent days."""
+    today = date.today()
+    dates = [(today - timedelta(days=i)).isoformat() for i in range(days)]
+    results: list[dict[str, Any]] = []
+
+    for d in reversed(dates):
+        try:
+            data = api.get_morning_training_readiness(d)
+            if data:
+                results.append({
+                    "date": d,
+                    "score": data.get("score"),
+                    "level": data.get("level"),
+                    "sleep_score_factor": data.get("sleepScorePercentage"),
+                    "recovery_time_hours": data.get("recoveryTimeInHours"),
+                    "hrv_status": data.get("hrvStatus"),
+                    "acclimation_status": data.get("heatAcclimationStatus"),
+                    "altitude_acclimation": data.get("altitudeAcclimationStatus"),
+                })
+            else:
+                results.append({"date": d, "score": None})
+        except Exception:
+            results.append({"date": d, "score": None})
+
+    return results
+
+
+def get_max_metrics(
+    api: Garmin,
+) -> dict[str, Any]:
+    """Get current max metrics (VO2 max, etc.)."""
+    today = date.today().isoformat()
+    try:
+        data = api.get_max_metrics(today)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    # API may return a list or dict
+    entry = data[0] if isinstance(data, list) and data else data
+    if not isinstance(entry, dict):
+        return {}
+
+    generic = entry.get("generic", {}) or {}
+    cycling = entry.get("cycling", {}) or {}
+    result: dict[str, Any] = {}
+
+    if generic:
+        result["vo2_max_running"] = generic.get("vo2MaxPreciseValue")
+        result["fitness_age"] = generic.get("fitnessAge")
+    if cycling:
+        result["vo2_max_cycling"] = cycling.get("vo2MaxPreciseValue")
+
+    result["updated"] = entry.get("calendarDate")
+    return result
+
+
+def get_endurance_score(
+    api: Garmin,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    """Get endurance score for a single day or date range."""
+    if start_date is None:
+        start_date = date.today().isoformat()
+
+    try:
+        if end_date:
+            data = api.get_endurance_score(start_date, end_date)
+        else:
+            data = api.get_endurance_score(start_date)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    # Single-day response
+    if isinstance(data, dict) and "overallScore" in data:
+        return {
+            "date": start_date,
+            "overall_score": data.get("overallScore"),
+            "running_score": data.get("runningScore"),
+            "cycling_score": data.get("cyclingScore"),
+            "swimming_score": data.get("swimmingScore"),
+        }
+
+    return data
+
+
+def get_lactate_threshold(
+    api: Garmin,
+) -> dict[str, Any]:
+    """Get latest lactate threshold data (heart rate, speed, power)."""
+    try:
+        data = api.get_lactate_threshold(latest=True)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    result: dict[str, Any] = {}
+
+    shr = data.get("speed_and_heart_rate", {})
+    if shr:
+        result["heart_rate_bpm"] = shr.get("heartRate")
+        speed_mps = shr.get("speed")
+        if speed_mps:
+            result["speed_m_per_s"] = round(speed_mps, 3)
+            # Convert m/s to min/km pace
+            pace_secs = 1000.0 / speed_mps
+            result["pace_min_per_km"] = _format_time(pace_secs)
+        result["date"] = shr.get("calendarDate")
+
+    power = data.get("power", {})
+    if power:
+        result["ftp_watts"] = power.get("functionalThresholdPower")
+
+    return result

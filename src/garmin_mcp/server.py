@@ -266,6 +266,94 @@ def get_recovery_snapshot() -> str:
         return NOT_CONFIGURED_MSG
 
 
+@mcp.tool()
+def get_morning_readiness(days: int = 7) -> str:
+    """Get morning training readiness score over recent days. This is the
+    readiness score calculated right after waking up, shown in the Garmin
+    Morning Report. Includes sleep factor, HRV status, and recovery time.
+    Max 90 days."""
+    from .tools.training import get_morning_readiness as _get
+
+    days = _clamp_days(days)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_stress_data(days: int = 7) -> str:
+    """Get all-day stress data over recent days including overall stress level,
+    time in rest/low/medium/high stress, and stress qualifier. Max 90 days."""
+    from .tools.health import get_stress_data as _get
+
+    days = _clamp_days(days)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, days=days)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_max_metrics() -> str:
+    """Get current max performance metrics including running VO2 max,
+    cycling VO2 max, and fitness age."""
+    from .tools.training import get_max_metrics as _get
+
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_endurance_score(
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    """Get endurance score. Call with no args for today's score. Provide
+    start_date (YYYY-MM-DD) for a specific day. Provide both start_date
+    and end_date for weekly aggregated data over a range."""
+    if start_date:
+        _validate_date(start_date, "start_date")
+    if end_date:
+        _validate_date(end_date, "end_date")
+    from .tools.training import get_endurance_score as _get
+
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, start_date=start_date, end_date=end_date)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_lactate_threshold() -> str:
+    """Get latest running lactate threshold data including heart rate at
+    threshold, pace at threshold (min/km), and functional threshold power
+    (watts). Key for setting Hyrox run pacing strategy."""
+    from .tools.training import get_lactate_threshold as _get
+
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
 # --- Body composition tools ---
 
 
