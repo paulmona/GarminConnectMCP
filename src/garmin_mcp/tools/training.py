@@ -354,6 +354,22 @@ def get_lactate_threshold(
     return result
 
 
+def get_fitness_age(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get fitness age data for a given date."""
+    try:
+        data = api.get_fitnessage_data(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
 def get_progress_summary(
     api: Garmin,
     start_date: str,

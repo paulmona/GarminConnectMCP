@@ -137,6 +137,56 @@ def get_body_battery(
     return results
 
 
+def get_daily_stats(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get daily summary stats for a given date."""
+    try:
+        data = api.get_stats(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_weekly_stress(
+    api: Garmin,
+    end: str,
+    weeks: int = 4,
+) -> dict[str, Any]:
+    """Get weekly stress aggregates."""
+    try:
+        data = api.get_weekly_stress(end, weeks)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_weekly_intensity_minutes(
+    api: Garmin,
+    end: str,
+    weeks: int = 4,
+) -> dict[str, Any]:
+    """Get weekly intensity minutes aggregates."""
+    try:
+        data = api.get_weekly_intensity_minutes(end, weeks)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
 def get_stress_data(
     api: Garmin,
     days: int = 7,
