@@ -445,13 +445,19 @@ class _RequestLogMiddleware:
                 auth_preview = f"{parts[0]} {parts[1][:10]}..." if len(parts) == 2 else auth_raw[:15]
             else:
                 auth_preview = "(none)"
+            # Real client IP: Cloudflare Tunnel forwards it in CF-Connecting-IP.
+            # Fall back to X-Forwarded-For, then the raw TCP peer address.
+            cf_ip = headers.get(b"cf-connecting-ip", b"").decode("utf-8", errors="replace")
+            xff = headers.get(b"x-forwarded-for", b"").decode("utf-8", errors="replace").split(",")[0].strip()
+            tcp_peer = (scope.get("client") or ("?", 0))[0]
+            client_ip = cf_ip or xff or tcp_peer
             origin = headers.get(b"origin", b"").decode("utf-8", errors="replace")
             ua = headers.get(b"user-agent", b"").decode("utf-8", errors="replace")[:60]
             accept = headers.get(b"accept", b"").decode("utf-8", errors="replace")
             _logger.info(
-                "REQ  %s %s%s  auth=%s  accept=%s  origin=%s  ua=%s",
+                "REQ  %s %s%s  ip=%s  auth=%s  accept=%s  origin=%s  ua=%s",
                 method, path, f"?{qs}" if qs else "",
-                auth_preview, accept or "(none)", origin or "(none)", ua or "(none)",
+                client_ip, auth_preview, accept or "(none)", origin or "(none)", ua or "(none)",
             )
 
             async def send_with_log(message):
