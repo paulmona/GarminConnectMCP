@@ -15,7 +15,9 @@ RUN groupadd --gid 1000 mcp && \
     useradd --uid 1000 --gid mcp --create-home mcp
 
 # Session token cache lives here; mount a volume to persist across restarts
-RUN mkdir -p config/.session && chown -R mcp:mcp config/
+# Also chown the entire /app (including .venv created by uv sync) so the
+# non-root mcp user can run `uv run` at runtime.
+RUN mkdir -p config/.session && chown -R mcp:mcp /app
 
 USER mcp
 
