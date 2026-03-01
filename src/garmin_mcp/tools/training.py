@@ -352,3 +352,51 @@ def get_lactate_threshold(
         result["ftp_watts"] = power.get("functionalThresholdPower")
 
     return result
+
+
+def get_progress_summary(
+    api: Garmin,
+    start_date: str,
+    end_date: str,
+) -> dict[str, Any]:
+    """Get progress summary between two dates."""
+    try:
+        data = api.get_progress_summary_between_dates(start_date, end_date)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_personal_records(
+    api: Garmin,
+) -> list[dict[str, Any]]:
+    """Get personal records across all activity types."""
+    try:
+        data = api.get_personal_record()
+    except Exception:
+        return []
+
+    if not data:
+        return []
+
+    if not isinstance(data, list):
+        data = [data]
+
+    results: list[dict[str, Any]] = []
+    for record in data:
+        if not isinstance(record, dict):
+            continue
+        results.append({
+            "activity_type": record.get("typeKey"),
+            "record_type": record.get("personalRecordType"),
+            "value": record.get("value"),
+            "activity_id": record.get("activityId"),
+            "activity_name": record.get("activityName"),
+            "date": record.get("prStartTimeGMT") or record.get("calendarDate"),
+        })
+
+    return results

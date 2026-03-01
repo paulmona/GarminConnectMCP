@@ -6,7 +6,10 @@ from unittest.mock import MagicMock, patch
 from garmin_mcp.tools.health import (
     _date_range,
     get_body_battery,
+    get_body_battery_events,
+    get_heart_rates,
     get_hrv_trend,
+    get_intensity_minutes,
     get_resting_hr_trend,
     get_sleep_history,
     get_stress_data,
@@ -309,3 +312,132 @@ class TestGetStressData:
         result = get_stress_data(api, days=1)
 
         assert result[0]["overall_stress_level"] is None
+
+
+# --- get_intensity_minutes ---
+
+class TestGetIntensityMinutes:
+
+    def test_returns_intensity_minutes(self):
+        api = MagicMock()
+        api.get_intensity_minutes_data.return_value = {
+            "weeklyGoal": 150,
+            "moderateIntensityMinutes": 80,
+            "vigorousIntensityMinutes": 40,
+            "intensityMinutesGoalReached": 160,
+        }
+
+        result = get_intensity_minutes(api, cdate="2025-01-15")
+
+        assert result["date"] == "2025-01-15"
+        assert result["weekly_goal"] == 150
+        assert result["moderate_minutes"] == 80
+        assert result["vigorous_minutes"] == 40
+        assert result["total_intensity_minutes"] == 160
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_intensity_minutes_data.return_value = None
+
+        assert get_intensity_minutes(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_intensity_minutes_data.side_effect = Exception("fail")
+
+        assert get_intensity_minutes(api, cdate="2025-01-15") == {}
+
+
+# --- get_body_battery_events ---
+
+class TestGetBodyBatteryEvents:
+
+    def test_returns_events(self):
+        api = MagicMock()
+        api.get_body_battery_events.return_value = [
+            {
+                "eventType": "ACTIVITY",
+                "title": "Morning Run",
+                "impact": "HIGH",
+                "durationInSeconds": 3600,
+                "bodyBatteryChange": -25,
+            },
+            {
+                "eventType": "SLEEP",
+                "title": "Night Sleep",
+                "impact": "POSITIVE",
+                "durationInSeconds": 28800,
+                "bodyBatteryChange": 45,
+            },
+        ]
+
+        result = get_body_battery_events(api, cdate="2025-01-15")
+
+        assert result["date"] == "2025-01-15"
+        assert len(result["events"]) == 2
+        assert result["events"][0]["event_type"] == "ACTIVITY"
+        assert result["events"][0]["body_battery_change"] == -25
+        assert result["events"][1]["event_type"] == "SLEEP"
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_body_battery_events.return_value = None
+
+        assert get_body_battery_events(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_body_battery_events.side_effect = Exception("fail")
+
+        assert get_body_battery_events(api, cdate="2025-01-15") == {}
+
+
+# --- get_heart_rates ---
+
+class TestGetHeartRates:
+
+    def test_returns_heart_rate_data(self):
+        api = MagicMock()
+        api.get_heart_rates.return_value = {
+            "restingHeartRate": 58,
+            "maxHeartRate": 175,
+            "minHeartRate": 45,
+            "heartRateZones": [
+                {"zoneNumber": 1, "secsInZone": 50000, "zoneLowBoundary": 50},
+                {"zoneNumber": 2, "secsInZone": 10000, "zoneLowBoundary": 100},
+            ],
+        }
+
+        result = get_heart_rates(api, cdate="2025-01-15")
+
+        assert result["date"] == "2025-01-15"
+        assert result["resting_hr"] == 58
+        assert result["max_hr"] == 175
+        assert result["min_hr"] == 45
+        assert len(result["heart_rate_zones"]) == 2
+        assert result["heart_rate_zones"][0]["zone_number"] == 1
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_heart_rates.return_value = None
+
+        assert get_heart_rates(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_heart_rates.side_effect = Exception("fail")
+
+        assert get_heart_rates(api, cdate="2025-01-15") == {}
+
+    def test_handles_missing_zones(self):
+        api = MagicMock()
+        api.get_heart_rates.return_value = {
+            "restingHeartRate": 60,
+            "maxHeartRate": 150,
+            "minHeartRate": 48,
+        }
+
+        result = get_heart_rates(api, cdate="2025-01-15")
+
+        assert result["resting_hr"] == 60
+        assert "heart_rate_zones" not in result

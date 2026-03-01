@@ -198,6 +198,54 @@ def get_resting_hr_trend(days: int = 14) -> str:
         return NOT_CONFIGURED_MSG
 
 
+@mcp.tool()
+def get_heart_rates(cdate: str) -> str:
+    """Get intraday heart rate data for a given date (YYYY-MM-DD) including
+    resting HR, min/max HR, and time in each heart rate zone."""
+    from .tools.health import get_heart_rates as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, cdate=cdate)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_body_battery_events(cdate: str) -> str:
+    """Get body battery drain and charge events for a given date (YYYY-MM-DD).
+    Shows what activities drained or charged your body battery."""
+    from .tools.health import get_body_battery_events as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, cdate=cdate)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_intensity_minutes(cdate: str) -> str:
+    """Get intensity minutes data for a given date (YYYY-MM-DD) including
+    moderate and vigorous minutes towards the weekly goal."""
+    from .tools.health import get_intensity_minutes as _get
+
+    cdate = _validate_date(cdate)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, cdate=cdate)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
 # --- Training tools ---
 
 
@@ -344,6 +392,93 @@ def get_lactate_threshold() -> str:
     threshold, pace at threshold (min/km), and functional threshold power
     (watts). Key for setting Hyrox run pacing strategy."""
     from .tools.training import get_lactate_threshold as _get
+
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_progress_summary(start_date: str, end_date: str) -> str:
+    """Get a progress summary between two dates (YYYY-MM-DD) showing
+    fitness improvements, activity totals, and trend data over the period."""
+    from .tools.training import get_progress_summary as _get
+
+    start_date = _validate_date(start_date)
+    end_date = _validate_date(end_date)
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, start_date=start_date, end_date=end_date)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_personal_records() -> str:
+    """Get personal records across all activity types including fastest
+    distances, longest runs, and other PRs from Garmin Connect."""
+    from .tools.training import get_personal_records as _get
+
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+# --- Workout / training plan tools ---
+
+
+_MAX_WORKOUTS = 50
+_WORKOUT_ID_RE = re.compile(r"^\d{1,20}$")
+
+
+@mcp.tool()
+def get_workouts(start: int = 0, limit: int = 20) -> str:
+    """Get saved workouts from Garmin Connect. Returns workout names,
+    sport types, and estimated duration/distance. Limit capped at 50."""
+    from .tools.workouts import get_workouts as _get
+
+    start = max(0, start)
+    limit = max(1, min(limit, _MAX_WORKOUTS))
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, start=start, limit=limit)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_workout_by_id(workout_id: str) -> str:
+    """Get details of a specific saved workout. Use a workout_id from
+    get_workouts."""
+    from .tools.workouts import get_workout_by_id as _get
+
+    if not _WORKOUT_ID_RE.match(workout_id):
+        raise ValueError(f"Invalid workout_id: {workout_id!r}. Expected numeric ID.")
+    try:
+        result = _get_client().call_with_retry(
+            lambda api: _get(api, workout_id=workout_id)
+        )
+        return _to_json(result)
+    except CredentialsNotConfiguredError:
+        return NOT_CONFIGURED_MSG
+
+
+@mcp.tool()
+def get_training_plans() -> str:
+    """Get training plans from Garmin Connect."""
+    from .tools.workouts import get_training_plans as _get
 
     try:
         result = _get_client().call_with_retry(
