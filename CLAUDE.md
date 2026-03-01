@@ -44,6 +44,14 @@ docker buildx build --platform linux/amd64 --push -t paulmon/garmin-connect-mcp:
 
 When working on a GitHub issue, always create a feature branch from `main` before making changes. Use the naming convention `feature/<short-description>` (e.g., `feature/totp-authorize-gate`). Commit messages and PR descriptions should include `Closes #<issue-number>` so the issue is automatically closed when the PR is merged.
 
+### Bug workflow
+
+When the user reports a bug and we confirm it exists:
+1. **Create a GitHub issue** with the `bug` label — include symptoms, root cause, and expected behavior
+2. **Create a fix branch** from `main` (e.g., `fix/<short-description>`)
+3. **Comment on the issue** with progress updates as the fix is developed
+4. **Include `Closes #<issue-number>`** in the PR description so the issue auto-closes on merge
+
 ## Architecture
 
 The project is a single Python package (`src/garmin_mcp/`) built on [FastMCP](https://github.com/jlowin/fastmcp). All 13 MCP tools are registered on the global `mcp` instance in `server.py`.
