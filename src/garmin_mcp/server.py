@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 
 _logger = logging.getLogger(__name__)
+_DEBUG = os.environ.get("MCP_DEBUG", "").strip().lower() in ("1", "true", "yes")
 
 from mcp.server.fastmcp import FastMCP
 
@@ -444,7 +445,10 @@ class _RequestLogMiddleware:
             auth_raw = headers.get(b"authorization", b"").decode("utf-8", errors="replace")
             if auth_raw:
                 parts = auth_raw.split(" ", 1)
-                auth_preview = f"{parts[0]} {parts[1][:10]}..." if len(parts) == 2 else auth_raw[:15]
+                if _DEBUG:
+                    auth_preview = f"{parts[0]} {parts[1][:10]}..." if len(parts) == 2 else auth_raw[:15]
+                else:
+                    auth_preview = f"{parts[0]} ***" if len(parts) == 2 else "(redacted)"
             else:
                 auth_preview = "(none)"
             # Real client IP: Cloudflare Tunnel forwards it in CF-Connecting-IP.
@@ -661,8 +665,12 @@ class _TokenEndpointMiddleware:
                 req_chunks.append(message.get("body", b""))
                 if not message.get("more_body", False):
                     req_body = b"".join(req_chunks)
-                    _logger.info("TOKEN REQUEST body: %s",
-                                 req_body.decode("utf-8", errors="replace")[:500])
+                    if _DEBUG:
+                        _logger.info("TOKEN REQUEST body: %s",
+                                     req_body.decode("utf-8", errors="replace")[:500])
+                    else:
+                        _logger.info("TOKEN REQUEST body: (%d bytes, set MCP_DEBUG=true to log)",
+                                     len(req_body))
             return message
 
         captured_start = None
@@ -689,7 +697,10 @@ class _TokenEndpointMiddleware:
         try:
             data = json.loads(body)
         except Exception:
-            _logger.info("TOKEN RESPONSE (non-JSON): %s", body[:300])
+            if _DEBUG:
+                _logger.info("TOKEN RESPONSE (non-JSON): %s", body[:300])
+            else:
+                _logger.info("TOKEN RESPONSE (non-JSON, %d bytes)", len(body))
             return body
 
         # RFC 8707 §3.2: include resource when it was in the request
@@ -697,7 +708,11 @@ class _TokenEndpointMiddleware:
             data["resource"] = self._resource_url
 
         result = json.dumps(data).encode()
-        _logger.info("TOKEN RESPONSE: %s", result.decode()[:500])
+        if _DEBUG:
+            _logger.info("TOKEN RESPONSE: %s", result.decode()[:500])
+        else:
+            _logger.info("TOKEN RESPONSE: token_type=%s scope=%s (%d bytes)",
+                         data.get("token_type", "?"), data.get("scope", "?"), len(result))
         return result
 
 
