@@ -6,6 +6,7 @@ from garmin_mcp.tools.workouts import (
     get_training_plans,
     get_workout_by_id,
     get_workouts,
+    upload_cycling_workout,
     upload_running_workout,
 )
 
@@ -192,6 +193,82 @@ class TestUploadRunningWorkout:
 
         with pytest.raises(Exception, match="upload failed"):
             upload_running_workout(
+                api,
+                workout_name="Test",
+                steps=[{"type": "interval", "duration_seconds": 300}],
+            )
+
+
+# --- upload_cycling_workout ---
+
+
+class TestUploadCyclingWorkout:
+    def test_uploads_simple_workout(self):
+        api = MagicMock()
+        api.upload_cycling_workout.return_value = {
+            "workoutId": 77777,
+            "workoutName": "Sweet Spot",
+        }
+
+        steps = [
+            {"type": "warmup", "duration_seconds": 600},
+            {"type": "interval", "duration_seconds": 1200},
+            {"type": "cooldown", "duration_seconds": 300},
+        ]
+
+        result = upload_cycling_workout(api, workout_name="Sweet Spot", steps=steps)
+
+        assert result["workoutId"] == 77777
+        api.upload_cycling_workout.assert_called_once()
+        workout_arg = api.upload_cycling_workout.call_args[0][0]
+        assert workout_arg.workoutName == "Sweet Spot"
+        assert workout_arg.estimatedDurationInSecs == 2100
+        # Verify cycling sport type
+        segment = workout_arg.workoutSegments[0]
+        assert segment.sportType["sportTypeId"] == 2
+        assert segment.sportType["sportTypeKey"] == "cycling"
+
+    def test_uploads_interval_workout_with_repeats(self):
+        api = MagicMock()
+        api.upload_cycling_workout.return_value = {"workoutId": 66666}
+
+        steps = [
+            {"type": "warmup", "duration_seconds": 600},
+            {
+                "type": "repeat",
+                "iterations": 4,
+                "steps": [
+                    {"type": "interval", "duration_seconds": 300},
+                    {"type": "recovery", "duration_seconds": 180},
+                ],
+            },
+            {"type": "cooldown", "duration_seconds": 300},
+        ]
+
+        result = upload_cycling_workout(api, workout_name="FTP Intervals", steps=steps)
+
+        assert result["workoutId"] == 66666
+        workout_arg = api.upload_cycling_workout.call_args[0][0]
+        # 600 + 4*(300+180) + 300 = 2820
+        assert workout_arg.estimatedDurationInSecs == 2820
+
+    def test_returns_empty_on_none_response(self):
+        api = MagicMock()
+        api.upload_cycling_workout.return_value = None
+
+        steps = [{"type": "interval", "duration_seconds": 600}]
+        result = upload_cycling_workout(api, workout_name="Test", steps=steps)
+
+        assert result == {}
+
+    def test_raises_on_api_exception(self):
+        import pytest
+
+        api = MagicMock()
+        api.upload_cycling_workout.side_effect = Exception("upload failed")
+
+        with pytest.raises(Exception, match="upload failed"):
+            upload_cycling_workout(
                 api,
                 workout_name="Test",
                 steps=[{"type": "interval", "duration_seconds": 300}],

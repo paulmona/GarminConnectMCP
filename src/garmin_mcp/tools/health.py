@@ -290,6 +290,38 @@ def get_intensity_minutes(
     }
 
 
+def get_respiration_data(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get respiration (breathing rate) data for a given date."""
+    try:
+        data = api.get_respiration_data(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_spo2_data(
+    api: Garmin,
+    cdate: str,
+) -> dict[str, Any]:
+    """Get SpO2 (blood oxygen) data for a given date."""
+    try:
+        data = api.get_spo2_data(cdate)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
 def get_resting_hr_trend(
     api: Garmin,
     days: int = 14,

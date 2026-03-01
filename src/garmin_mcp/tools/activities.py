@@ -172,3 +172,69 @@ def get_activity_power_zones(
         return {}
 
     return data
+
+
+def get_last_activity(
+    api: Garmin,
+) -> dict[str, Any]:
+    """Get the most recent activity."""
+    try:
+        data = api.get_last_activity()
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return _summarize_activity(data)
+
+
+def get_activities_for_date(
+    api: Garmin,
+    cdate: str,
+) -> list[dict[str, Any]]:
+    """Get all activities for a specific date (YYYY-MM-DD)."""
+    try:
+        data = api.get_activities_fordate(cdate)
+    except Exception:
+        return []
+
+    if not data:
+        return []
+
+    if not isinstance(data, list):
+        data = [data]
+
+    return [_summarize_activity(a) for a in data]
+
+
+def get_activity_details(
+    api: Garmin,
+    activity_id: str,
+) -> dict[str, Any]:
+    """Get detailed activity data including GPS trackpoints and HR trace."""
+    try:
+        data = api.get_activity_details(activity_id)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_activity_gear(
+    api: Garmin,
+    activity_id: str,
+) -> dict[str, Any]:
+    """Get gear (shoes, bike, etc.) used for an activity."""
+    try:
+        data = api.get_activity_gear(activity_id)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data

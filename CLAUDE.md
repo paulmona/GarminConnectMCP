@@ -129,3 +129,12 @@ Required GitHub secrets for Docker push: `DOCKERHUB_USERNAME` (`paulmon`), `DOCK
 ## Testing
 
 Tests live in `tests/`. `pytest-asyncio` is configured with `asyncio_mode = "auto"`. Tests mock the Garmin API — no live credentials needed. The `test_mcp_oauth.py` script in the repo root requires a live server at `https://your-server.example.com` and is run manually, not via pytest.
+
+### Integration tests (`tests/test_mcp_integration.py`)
+
+**Every new MCP tool must have a corresponding integration test.** These tests exercise each tool through the full MCP Streamable HTTP protocol (JSON-RPC → FastMCP routing → tool function → mock API → JSON response). They catch issues that unit tests miss: wrong tool registration, MCP serialization problems, input schema mismatches.
+
+When adding a new tool, add a test to the appropriate class in `test_mcp_integration.py`:
+1. Set up mock return value on `mock_api` (the mocked `garminconnect.Garmin` instance)
+2. Call `_call_tool(mcp_client, "tool_name", {"arg": "value"})`
+3. Assert the parsed result contains expected fields
