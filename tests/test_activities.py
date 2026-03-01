@@ -7,6 +7,10 @@ from garmin_mcp.tools.activities import (
     _summarize_activity,
     get_activity_detail,
     get_activities_in_range,
+    get_activity_power_zones,
+    get_activity_split_summaries,
+    get_activity_typed_splits,
+    get_activity_weather,
     get_recent_activities,
 )
 
@@ -233,3 +237,113 @@ class TestGetActivitiesInRange:
         api.get_activities_by_date.return_value = None
 
         assert get_activities_in_range(api, "2025-01-01", "2025-01-31") == []
+
+
+# --- get_activity_typed_splits ---
+
+class TestGetActivityTypedSplits:
+
+    def test_returns_typed_splits(self):
+        api = MagicMock()
+        api.get_activity_typed_splits.return_value = {"splitType": "run_walk", "splits": []}
+
+        result = get_activity_typed_splits(api, "12345")
+
+        assert result["splitType"] == "run_walk"
+        api.get_activity_typed_splits.assert_called_once_with("12345")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activity_typed_splits.return_value = None
+
+        assert get_activity_typed_splits(api, "12345") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activity_typed_splits.side_effect = Exception("fail")
+
+        assert get_activity_typed_splits(api, "12345") == {}
+
+
+# --- get_activity_split_summaries ---
+
+class TestGetActivitySplitSummaries:
+
+    def test_returns_split_summaries(self):
+        api = MagicMock()
+        api.get_activity_split_summaries.return_value = {"splits": [{"distance": 1000}]}
+
+        result = get_activity_split_summaries(api, "12345")
+
+        assert "splits" in result
+        api.get_activity_split_summaries.assert_called_once_with("12345")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activity_split_summaries.return_value = None
+
+        assert get_activity_split_summaries(api, "12345") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activity_split_summaries.side_effect = Exception("fail")
+
+        assert get_activity_split_summaries(api, "12345") == {}
+
+
+# --- get_activity_weather ---
+
+class TestGetActivityWeather:
+
+    def test_returns_weather(self):
+        api = MagicMock()
+        api.get_activity_weather.return_value = {
+            "temperature": 15.0,
+            "humidity": 65,
+            "windSpeed": 10.0,
+        }
+
+        result = get_activity_weather(api, "12345")
+
+        assert result["temperature"] == 15.0
+        assert result["humidity"] == 65
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activity_weather.return_value = None
+
+        assert get_activity_weather(api, "12345") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activity_weather.side_effect = Exception("fail")
+
+        assert get_activity_weather(api, "12345") == {}
+
+
+# --- get_activity_power_zones ---
+
+class TestGetActivityPowerZones:
+
+    def test_returns_power_zones(self):
+        api = MagicMock()
+        api.get_activity_power_in_timezones.return_value = {
+            "zones": [{"zone": 1, "secsInZone": 300}]
+        }
+
+        result = get_activity_power_zones(api, "12345")
+
+        assert "zones" in result
+        api.get_activity_power_in_timezones.assert_called_once_with("12345")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_activity_power_in_timezones.return_value = None
+
+        assert get_activity_power_zones(api, "12345") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_activity_power_in_timezones.side_effect = Exception("fail")
+
+        assert get_activity_power_zones(api, "12345") == {}

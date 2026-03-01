@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from garmin_mcp.tools.training import (
     _format_time,
     get_endurance_score,
+    get_fitness_age,
     get_lactate_threshold,
     get_max_metrics,
     get_morning_readiness,
@@ -735,3 +736,34 @@ class TestGetProgressSummary:
         api.get_progress_summary_between_dates.side_effect = Exception("fail")
 
         assert get_progress_summary(api, start_date="2025-01-01", end_date="2025-01-31") == {}
+
+
+# --- get_fitness_age ---
+
+class TestGetFitnessAge:
+
+    def test_returns_fitness_age(self):
+        api = MagicMock()
+        api.get_fitnessage_data.return_value = {
+            "chronologicalAge": 35,
+            "fitnessAge": 28,
+            "achievableFitnessAge": 25,
+        }
+
+        result = get_fitness_age(api, cdate="2025-01-15")
+
+        assert result["chronologicalAge"] == 35
+        assert result["fitnessAge"] == 28
+        api.get_fitnessage_data.assert_called_once_with("2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_fitnessage_data.return_value = None
+
+        assert get_fitness_age(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_fitnessage_data.side_effect = Exception("fail")
+
+        assert get_fitness_age(api, cdate="2025-01-15") == {}

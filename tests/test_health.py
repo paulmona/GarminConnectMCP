@@ -7,12 +7,15 @@ from garmin_mcp.tools.health import (
     _date_range,
     get_body_battery,
     get_body_battery_events,
+    get_daily_stats,
     get_heart_rates,
     get_hrv_trend,
     get_intensity_minutes,
     get_resting_hr_trend,
     get_sleep_history,
     get_stress_data,
+    get_weekly_intensity_minutes,
+    get_weekly_stress,
 )
 
 
@@ -441,3 +444,85 @@ class TestGetHeartRates:
 
         assert result["resting_hr"] == 60
         assert "heart_rate_zones" not in result
+
+
+# --- get_daily_stats ---
+
+class TestGetDailyStats:
+
+    def test_returns_stats(self):
+        api = MagicMock()
+        api.get_stats.return_value = {
+            "totalSteps": 8500,
+            "totalDistanceMeters": 6200,
+            "activeSeconds": 3600,
+        }
+
+        result = get_daily_stats(api, cdate="2025-01-15")
+
+        assert result["totalSteps"] == 8500
+        api.get_stats.assert_called_once_with("2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_stats.return_value = None
+
+        assert get_daily_stats(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_stats.side_effect = Exception("fail")
+
+        assert get_daily_stats(api, cdate="2025-01-15") == {}
+
+
+# --- get_weekly_stress ---
+
+class TestGetWeeklyStress:
+
+    def test_returns_weekly_stress(self):
+        api = MagicMock()
+        api.get_weekly_stress.return_value = {"weeks": [{"avg": 35}]}
+
+        result = get_weekly_stress(api, end="2025-01-15", weeks=4)
+
+        assert result["weeks"][0]["avg"] == 35
+        api.get_weekly_stress.assert_called_once_with("2025-01-15", 4)
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_weekly_stress.return_value = None
+
+        assert get_weekly_stress(api, end="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_weekly_stress.side_effect = Exception("fail")
+
+        assert get_weekly_stress(api, end="2025-01-15") == {}
+
+
+# --- get_weekly_intensity_minutes ---
+
+class TestGetWeeklyIntensityMinutes:
+
+    def test_returns_weekly_data(self):
+        api = MagicMock()
+        api.get_weekly_intensity_minutes.return_value = {"weeks": [{"total": 150}]}
+
+        result = get_weekly_intensity_minutes(api, end="2025-01-15", weeks=4)
+
+        assert result["weeks"][0]["total"] == 150
+        api.get_weekly_intensity_minutes.assert_called_once_with("2025-01-15", 4)
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_weekly_intensity_minutes.return_value = None
+
+        assert get_weekly_intensity_minutes(api, end="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_weekly_intensity_minutes.side_effect = Exception("fail")
+
+        assert get_weekly_intensity_minutes(api, end="2025-01-15") == {}

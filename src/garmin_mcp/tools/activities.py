@@ -108,3 +108,67 @@ def get_activities_in_range(
     if not activities:
         return []
     return [_summarize_activity(a) for a in activities]
+
+
+def get_activity_typed_splits(
+    api: Garmin,
+    activity_id: str,
+) -> dict[str, Any]:
+    """Get typed splits (e.g., run/walk segments) for an activity."""
+    try:
+        data = api.get_activity_typed_splits(activity_id)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_activity_split_summaries(
+    api: Garmin,
+    activity_id: str,
+) -> dict[str, Any]:
+    """Get split summary data for an activity."""
+    try:
+        data = api.get_activity_split_summaries(activity_id)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_activity_weather(
+    api: Garmin,
+    activity_id: str,
+) -> dict[str, Any]:
+    """Get weather conditions during an activity."""
+    try:
+        data = api.get_activity_weather(activity_id)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
+
+
+def get_activity_power_zones(
+    api: Garmin,
+    activity_id: str,
+) -> dict[str, Any]:
+    """Get power zone distribution for an activity."""
+    try:
+        data = api.get_activity_power_in_timezones(activity_id)
+    except Exception:
+        return {}
+
+    if not data:
+        return {}
+
+    return data
