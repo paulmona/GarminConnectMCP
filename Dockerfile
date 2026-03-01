@@ -12,7 +12,7 @@ COPY src/ src/
 # Non-root user for runtime — session tokens are owned by this user,
 # so 0700 permissions in garmin_client.py are meaningful.
 RUN groupadd --gid 1000 mcp && \
-    useradd --uid 1000 --gid mcp --no-create-home mcp
+    useradd --uid 1000 --gid mcp --create-home mcp
 
 # Session token cache lives here; mount a volume to persist across restarts
 RUN mkdir -p config/.session && chown -R mcp:mcp config/
