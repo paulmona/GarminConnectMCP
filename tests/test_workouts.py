@@ -9,11 +9,10 @@ from garmin_mcp.tools.workouts import (
     upload_running_workout,
 )
 
-
 # --- get_workouts ---
 
-class TestGetWorkouts:
 
+class TestGetWorkouts:
     def test_returns_workouts(self):
         api = MagicMock()
         api.get_workouts.return_value = [
@@ -60,8 +59,8 @@ class TestGetWorkouts:
 
 # --- get_workout_by_id ---
 
-class TestGetWorkoutById:
 
+class TestGetWorkoutById:
     def test_returns_workout_detail(self):
         api = MagicMock()
         api.get_workout_by_id.return_value = {
@@ -91,8 +90,8 @@ class TestGetWorkoutById:
 
 # --- get_training_plans ---
 
-class TestGetTrainingPlans:
 
+class TestGetTrainingPlans:
     def test_returns_training_plans(self):
         api = MagicMock()
         api.get_training_plans.return_value = [
@@ -129,8 +128,8 @@ class TestGetTrainingPlans:
 
 # --- upload_running_workout ---
 
-class TestUploadRunningWorkout:
 
+class TestUploadRunningWorkout:
     def test_uploads_simple_workout(self):
         api = MagicMock()
         api.upload_running_workout.return_value = {
@@ -193,6 +192,7 @@ class TestUploadRunningWorkout:
 
         with pytest.raises(Exception, match="upload failed"):
             upload_running_workout(
-                api, workout_name="Test",
+                api,
+                workout_name="Test",
                 steps=[{"type": "interval", "duration_seconds": 300}],
             )

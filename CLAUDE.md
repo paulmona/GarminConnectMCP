@@ -37,7 +37,7 @@ docker buildx build --platform linux/amd64 --push -t paulmon/garmin-connect-mcp:
 # Release workflow (run these in order after making changes):
 #   1. git add <files> && git commit -m "..."
 #   2. git push origin main
-#   3. docker buildx build --platform linux/amd64 --push -t paulmon/garmin-connect-mcp:latest .
+#   3. Docker push happens automatically via GitHub Actions on merge to main
 ```
 
 ## Workflow
@@ -116,6 +116,15 @@ Fully in-memory; all state is lost on container restart (tokens, registered clie
 | `MCP_HOST` | No (default `0.0.0.0`) | SSE bind address |
 | `MCP_PORT` | No (default `8000`) | SSE port |
 | `GARMIN_SESSION_DIR` | No (default `config/.session`) | garth token cache directory |
+
+## CI/CD (GitHub Actions)
+
+Two workflows in `.github/workflows/`:
+
+- **`ci.yml`** — runs on push to `main` and PRs to `main`. Jobs: `test` (pytest), `lint` (ruff check + format), `security` (bandit + pip-audit), `codeql` (GitHub code scanning).
+- **`docker.yml`** — runs on push to `main` only. Re-runs tests, then builds `linux/amd64` image and pushes to `paulmon/garmin-connect-mcp:latest`.
+
+Required GitHub secrets for Docker push: `DOCKERHUB_USERNAME` (`paulmon`), `DOCKERHUB_TOKEN`.
 
 ## Testing
 

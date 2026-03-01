@@ -18,11 +18,10 @@ from garmin_mcp.tools.training import (
     get_weekly_summary,
 )
 
-
 # --- _format_time ---
 
-class TestFormatTime:
 
+class TestFormatTime:
     def test_hours_minutes_seconds(self):
         assert _format_time(3661.0) == "1:01:01"
 
@@ -44,8 +43,8 @@ class TestFormatTime:
 
 # --- get_training_status ---
 
-class TestGetTrainingStatus:
 
+class TestGetTrainingStatus:
     @patch("garmin_mcp.tools.training.date")
     def test_returns_training_status(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 15)
@@ -123,8 +122,8 @@ class TestGetTrainingStatus:
 
 # --- get_race_predictions ---
 
-class TestGetRacePredictions:
 
+class TestGetRacePredictions:
     def test_returns_predictions(self):
         api = MagicMock()
         api.get_race_predictions.return_value = [
@@ -174,14 +173,18 @@ class TestGetRacePredictions:
 
 # --- get_weekly_summary ---
 
-class TestGetWeeklySummary:
 
+class TestGetWeeklySummary:
     @patch("garmin_mcp.tools.training.get_sleep_history")
     @patch("garmin_mcp.tools.training.get_resting_hr_trend")
     @patch("garmin_mcp.tools.training.get_activities_in_range")
     @patch("garmin_mcp.tools.training.date")
     def test_returns_composite_summary(
-        self, mock_date, mock_activities, mock_rhr, mock_sleep,
+        self,
+        mock_date,
+        mock_activities,
+        mock_rhr,
+        mock_sleep,
     ):
         mock_date.today.return_value = date(2025, 1, 15)  # Wednesday
         mock_date.fromisoformat = date.fromisoformat
@@ -202,7 +205,7 @@ class TestGetWeeklySummary:
         result = get_weekly_summary(api=MagicMock())
 
         assert result["week_start"] == "2025-01-13"  # Monday
-        assert result["week_end"] == "2025-01-19"    # Sunday
+        assert result["week_end"] == "2025-01-19"  # Sunday
         assert result["total_activities"] == 2
         assert result["total_distance_km"] == 15.0
         assert result["total_duration_seconds"] == 4500
@@ -214,7 +217,11 @@ class TestGetWeeklySummary:
     @patch("garmin_mcp.tools.training.get_activities_in_range")
     @patch("garmin_mcp.tools.training.date")
     def test_accepts_target_date(
-        self, mock_date, mock_activities, mock_rhr, mock_sleep,
+        self,
+        mock_date,
+        mock_activities,
+        mock_rhr,
+        mock_sleep,
     ):
         mock_date.fromisoformat = date.fromisoformat
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -233,7 +240,11 @@ class TestGetWeeklySummary:
     @patch("garmin_mcp.tools.training.get_activities_in_range")
     @patch("garmin_mcp.tools.training.date")
     def test_handles_no_data(
-        self, mock_date, mock_activities, mock_rhr, mock_sleep,
+        self,
+        mock_date,
+        mock_activities,
+        mock_rhr,
+        mock_sleep,
     ):
         mock_date.today.return_value = date(2025, 1, 15)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -253,7 +264,11 @@ class TestGetWeeklySummary:
     @patch("garmin_mcp.tools.training.get_activities_in_range")
     @patch("garmin_mcp.tools.training.date")
     def test_handles_none_distance_in_activities(
-        self, mock_date, mock_activities, mock_rhr, mock_sleep,
+        self,
+        mock_date,
+        mock_activities,
+        mock_rhr,
+        mock_sleep,
     ):
         mock_date.today.return_value = date(2025, 1, 15)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -269,6 +284,7 @@ class TestGetWeeklySummary:
 
 
 # --- get_recovery_snapshot ---
+
 
 def _full_recovery_api():
     """Create a mock API that returns full recovery data."""
@@ -299,18 +315,18 @@ def _full_recovery_api():
 
 
 class TestGetRecoverySnapshot:
-
     @patch("garmin_mcp.tools.training.get_resting_hr_trend")
     @patch("garmin_mcp.tools.training.get_body_battery")
     @patch("garmin_mcp.tools.training.date")
     def test_returns_all_expected_keys(
-        self, mock_date, mock_bb, mock_rhr,
+        self,
+        mock_date,
+        mock_bb,
+        mock_rhr,
     ):
         mock_date.today.return_value = date(2025, 1, 15)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-        mock_bb.return_value = [
-            {"most_recent": 55, "highest": 90, "lowest": 20}
-        ]
+        mock_bb.return_value = [{"most_recent": 55, "highest": 90, "lowest": 20}]
         mock_rhr.return_value = [
             {"date": "2025-01-14", "resting_hr": 58},
             {"date": "2025-01-15", "resting_hr": 60},
@@ -403,7 +419,10 @@ class TestGetRecoverySnapshot:
     @patch("garmin_mcp.tools.training.get_body_battery")
     @patch("garmin_mcp.tools.training.date")
     def test_body_battery_failure_returns_none(
-        self, mock_date, mock_bb, mock_rhr,
+        self,
+        mock_date,
+        mock_bb,
+        mock_rhr,
     ):
         mock_date.today.return_value = date(2025, 1, 15)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -435,7 +454,10 @@ class TestGetRecoverySnapshot:
     @patch("garmin_mcp.tools.training.get_body_battery")
     @patch("garmin_mcp.tools.training.date")
     def test_readiness_failure_returns_none(
-        self, mock_date, mock_bb, mock_rhr,
+        self,
+        mock_date,
+        mock_bb,
+        mock_rhr,
     ):
         mock_date.today.return_value = date(2025, 1, 15)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
@@ -453,8 +475,8 @@ class TestGetRecoverySnapshot:
 
 # --- get_morning_readiness ---
 
-class TestGetMorningReadiness:
 
+class TestGetMorningReadiness:
     @patch("garmin_mcp.tools.training.date")
     def test_returns_morning_readiness(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 15)
@@ -502,23 +524,25 @@ class TestGetMorningReadiness:
 
 # --- get_max_metrics ---
 
-class TestGetMaxMetrics:
 
+class TestGetMaxMetrics:
     @patch("garmin_mcp.tools.training.date")
     def test_returns_max_metrics(self, mock_date):
         mock_date.today.return_value = date(2025, 1, 15)
         mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
         api = MagicMock()
-        api.get_max_metrics.return_value = [{
-            "calendarDate": "2025-01-15",
-            "generic": {
-                "vo2MaxPreciseValue": 52.3,
-                "fitnessAge": 28,
-            },
-            "cycling": {
-                "vo2MaxPreciseValue": 48.1,
-            },
-        }]
+        api.get_max_metrics.return_value = [
+            {
+                "calendarDate": "2025-01-15",
+                "generic": {
+                    "vo2MaxPreciseValue": 52.3,
+                    "fitnessAge": 28,
+                },
+                "cycling": {
+                    "vo2MaxPreciseValue": 48.1,
+                },
+            }
+        ]
 
         result = get_max_metrics(api)
 
@@ -552,8 +576,8 @@ class TestGetMaxMetrics:
 
 # --- get_endurance_score ---
 
-class TestGetEnduranceScore:
 
+class TestGetEnduranceScore:
     def test_returns_single_day_score(self):
         api = MagicMock()
         api.get_endurance_score.return_value = {
@@ -573,9 +597,7 @@ class TestGetEnduranceScore:
         api = MagicMock()
         api.get_endurance_score.return_value = {"some": "aggregated_data"}
 
-        result = get_endurance_score(
-            api, start_date="2025-01-01", end_date="2025-01-15"
-        )
+        result = get_endurance_score(api, start_date="2025-01-01", end_date="2025-01-15")
 
         assert result == {"some": "aggregated_data"}
         api.get_endurance_score.assert_called_once_with("2025-01-01", "2025-01-15")
@@ -591,8 +613,8 @@ class TestGetEnduranceScore:
 
 # --- get_lactate_threshold ---
 
-class TestGetLactateThreshold:
 
+class TestGetLactateThreshold:
     def test_returns_lactate_threshold(self):
         api = MagicMock()
         api.get_lactate_threshold.return_value = {
@@ -649,8 +671,8 @@ class TestGetLactateThreshold:
 
 # --- get_personal_records ---
 
-class TestGetPersonalRecords:
 
+class TestGetPersonalRecords:
     def test_returns_personal_records(self):
         api = MagicMock()
         api.get_personal_record.return_value = [
@@ -709,8 +731,8 @@ class TestGetPersonalRecords:
 
 # --- get_progress_summary ---
 
-class TestGetProgressSummary:
 
+class TestGetProgressSummary:
     def test_returns_progress_data(self):
         api = MagicMock()
         api.get_progress_summary_between_dates.return_value = {
@@ -740,8 +762,8 @@ class TestGetProgressSummary:
 
 # --- get_fitness_age ---
 
-class TestGetFitnessAge:
 
+class TestGetFitnessAge:
     def test_returns_fitness_age(self):
         api = MagicMock()
         api.get_fitnessage_data.return_value = {

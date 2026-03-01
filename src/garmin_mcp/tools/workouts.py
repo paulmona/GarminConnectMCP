@@ -26,17 +26,19 @@ def get_workouts(
     for workout in data:
         if not isinstance(workout, dict):
             continue
-        results.append({
-            "workout_id": workout.get("workoutId"),
-            "workout_name": workout.get("workoutName"),
-            "sport_type": workout.get("sportType", {}).get("sportTypeKey")
-            if isinstance(workout.get("sportType"), dict)
-            else workout.get("sportType"),
-            "created_date": workout.get("createdDate"),
-            "updated_date": workout.get("updatedDate"),
-            "estimated_duration_seconds": workout.get("estimatedDurationInSecs"),
-            "estimated_distance_meters": workout.get("estimatedDistanceInMeters"),
-        })
+        results.append(
+            {
+                "workout_id": workout.get("workoutId"),
+                "workout_name": workout.get("workoutName"),
+                "sport_type": workout.get("sportType", {}).get("sportTypeKey")
+                if isinstance(workout.get("sportType"), dict)
+                else workout.get("sportType"),
+                "created_date": workout.get("createdDate"),
+                "updated_date": workout.get("updatedDate"),
+                "estimated_duration_seconds": workout.get("estimatedDurationInSecs"),
+                "estimated_distance_meters": workout.get("estimatedDistanceInMeters"),
+            }
+        )
 
     return results
 
@@ -114,9 +116,7 @@ def upload_running_workout(
         elif step_type == "repeat":
             iterations = int(step_def.get("iterations", 1))
             nested = step_def.get("steps", [])
-            nested_steps = [
-                _build_step(s, i + 1) for i, s in enumerate(nested)
-            ]
+            nested_steps = [_build_step(s, i + 1) for i, s in enumerate(nested)]
             return create_repeat_group(iterations, nested_steps, step_order=order)
         else:  # interval
             return create_interval_step(duration, step_order=order)

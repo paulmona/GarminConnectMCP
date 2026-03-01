@@ -6,8 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from garminconnect import GarminConnectAuthenticationError
 
-from garmin_mcp.config import Settings
-from garmin_mcp.config import CredentialsNotConfiguredError
+from garmin_mcp.config import CredentialsNotConfiguredError, Settings
 from garmin_mcp.garmin_client import GarminClient
 
 
@@ -29,9 +28,7 @@ class TestGarminClientInit:
 
     @patch("garmin_mcp.garmin_client.Settings.load")
     def test_defaults_to_settings_load(self, mock_load):
-        mock_load.return_value = Settings(
-            garmin_email="e", garmin_password="p", session_dir=Path("/tmp")
-        )
+        mock_load.return_value = Settings(garmin_email="e", garmin_password="p", session_dir=Path("/tmp"))
         client = GarminClient()
         mock_load.assert_called_once()
         assert client._settings is mock_load.return_value
@@ -111,9 +108,7 @@ class TestAuthenticate:
         settings = _make_settings(tmp_path)
         mock_instance = MockGarmin.return_value
 
-        mock_instance.login.side_effect = GarminConnectAuthenticationError(
-            "invalid"
-        )
+        mock_instance.login.side_effect = GarminConnectAuthenticationError("invalid")
 
         gc = GarminClient(settings=settings)
         with pytest.raises(GarminConnectAuthenticationError, match="after retry"):
@@ -195,9 +190,7 @@ class TestCallWithRetry:
         mock_instance.garth = MagicMock()
 
         gc = GarminClient(settings=settings)
-        fn = MagicMock(
-            side_effect=GarminConnectAuthenticationError("permanent")
-        )
+        fn = MagicMock(side_effect=GarminConnectAuthenticationError("permanent"))
 
         with pytest.raises(GarminConnectAuthenticationError):
             gc.call_with_retry(fn)
@@ -211,9 +204,7 @@ class TestCallWithRetry:
         mock_instance.garth = MagicMock()
 
         gc = GarminClient(settings=settings)
-        fn = MagicMock(
-            side_effect=CredentialsNotConfiguredError("not configured")
-        )
+        fn = MagicMock(side_effect=CredentialsNotConfiguredError("not configured"))
 
         with pytest.raises(CredentialsNotConfiguredError):
             gc.call_with_retry(fn)

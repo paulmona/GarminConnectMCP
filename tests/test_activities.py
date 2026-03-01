@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 from garmin_mcp.tools.activities import (
     _format_pace,
     _summarize_activity,
-    get_activity_detail,
     get_activities_in_range,
+    get_activity_detail,
     get_activity_power_zones,
     get_activity_split_summaries,
     get_activity_typed_splits,
@@ -14,11 +14,10 @@ from garmin_mcp.tools.activities import (
     get_recent_activities,
 )
 
-
 # --- _format_pace ---
 
-class TestFormatPace:
 
+class TestFormatPace:
     def test_converts_speed_to_pace(self):
         # 3.0 m/s => 1000/3 = 333.33s => 5:33/km
         assert _format_pace(3.0) == "5:33/km"
@@ -39,6 +38,7 @@ class TestFormatPace:
 
 # --- _summarize_activity ---
 
+
 def _sample_activity() -> dict:
     return {
         "activityId": 12345,
@@ -56,7 +56,6 @@ def _sample_activity() -> dict:
 
 
 class TestSummarizeActivity:
-
     def test_extracts_all_fields(self):
         result = _summarize_activity(_sample_activity())
         assert result["activity_id"] == 12345
@@ -86,8 +85,8 @@ class TestSummarizeActivity:
 
 # --- get_recent_activities ---
 
-class TestGetRecentActivities:
 
+class TestGetRecentActivities:
     def test_returns_summarized_activities(self):
         api = MagicMock()
         api.get_activities.return_value = [_sample_activity()]
@@ -97,7 +96,9 @@ class TestGetRecentActivities:
         assert len(result) == 1
         assert result[0]["activity_id"] == 12345
         api.get_activities.assert_called_once_with(
-            0, 5, activitytype=None,
+            0,
+            5,
+            activitytype=None,
         )
 
     def test_passes_activity_type_filter(self):
@@ -107,7 +108,9 @@ class TestGetRecentActivities:
         get_recent_activities(api, limit=3, activity_type="running")
 
         api.get_activities.assert_called_once_with(
-            0, 3, activitytype="running",
+            0,
+            3,
+            activitytype="running",
         )
 
     def test_returns_empty_list_when_no_activities(self):
@@ -125,8 +128,8 @@ class TestGetRecentActivities:
 
 # --- get_activity_detail ---
 
-class TestGetActivityDetail:
 
+class TestGetActivityDetail:
     def test_returns_detail_with_laps_and_hr_zones(self):
         api = MagicMock()
         api.get_activity.return_value = _sample_activity()
@@ -205,31 +208,31 @@ class TestGetActivityDetail:
 
 # --- get_activities_in_range ---
 
-class TestGetActivitiesInRange:
 
+class TestGetActivitiesInRange:
     def test_returns_activities_in_date_range(self):
         api = MagicMock()
         api.get_activities_by_date.return_value = [_sample_activity()]
 
-        result = get_activities_in_range(
-            api, "2025-01-01", "2025-01-31"
-        )
+        result = get_activities_in_range(api, "2025-01-01", "2025-01-31")
 
         assert len(result) == 1
         api.get_activities_by_date.assert_called_once_with(
-            "2025-01-01", "2025-01-31", activitytype=None,
+            "2025-01-01",
+            "2025-01-31",
+            activitytype=None,
         )
 
     def test_passes_activity_type(self):
         api = MagicMock()
         api.get_activities_by_date.return_value = []
 
-        get_activities_in_range(
-            api, "2025-01-01", "2025-01-31", activity_type="cycling"
-        )
+        get_activities_in_range(api, "2025-01-01", "2025-01-31", activity_type="cycling")
 
         api.get_activities_by_date.assert_called_once_with(
-            "2025-01-01", "2025-01-31", activitytype="cycling",
+            "2025-01-01",
+            "2025-01-31",
+            activitytype="cycling",
         )
 
     def test_returns_empty_on_none(self):
@@ -241,8 +244,8 @@ class TestGetActivitiesInRange:
 
 # --- get_activity_typed_splits ---
 
-class TestGetActivityTypedSplits:
 
+class TestGetActivityTypedSplits:
     def test_returns_typed_splits(self):
         api = MagicMock()
         api.get_activity_typed_splits.return_value = {"splitType": "run_walk", "splits": []}
@@ -267,8 +270,8 @@ class TestGetActivityTypedSplits:
 
 # --- get_activity_split_summaries ---
 
-class TestGetActivitySplitSummaries:
 
+class TestGetActivitySplitSummaries:
     def test_returns_split_summaries(self):
         api = MagicMock()
         api.get_activity_split_summaries.return_value = {"splits": [{"distance": 1000}]}
@@ -293,8 +296,8 @@ class TestGetActivitySplitSummaries:
 
 # --- get_activity_weather ---
 
-class TestGetActivityWeather:
 
+class TestGetActivityWeather:
     def test_returns_weather(self):
         api = MagicMock()
         api.get_activity_weather.return_value = {
@@ -323,13 +326,11 @@ class TestGetActivityWeather:
 
 # --- get_activity_power_zones ---
 
-class TestGetActivityPowerZones:
 
+class TestGetActivityPowerZones:
     def test_returns_power_zones(self):
         api = MagicMock()
-        api.get_activity_power_in_timezones.return_value = {
-            "zones": [{"zone": 1, "secsInZone": 300}]
-        }
+        api.get_activity_power_in_timezones.return_value = {"zones": [{"zone": 1, "secsInZone": 300}]}
 
         result = get_activity_power_zones(api, "12345")
 

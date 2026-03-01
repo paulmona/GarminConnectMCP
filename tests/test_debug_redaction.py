@@ -3,16 +3,16 @@
 import json
 import logging
 
-import pytest
-
 
 async def _simple_app(scope, receive, send):
     """Minimal ASGI app that always returns 200 OK."""
-    await send({
-        "type": "http.response.start",
-        "status": 200,
-        "headers": [(b"content-type", b"text/plain")],
-    })
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-type", b"text/plain")],
+        }
+    )
     await send({"type": "http.response.body", "body": b"OK", "more_body": False})
 
 
@@ -20,16 +20,20 @@ async def _token_app(scope, receive, send):
     """ASGI app that reads the request body and returns a JSON token response."""
     # Must call receive() so _TokenEndpointMiddleware's logging_receive fires
     await receive()
-    await send({
-        "type": "http.response.start",
-        "status": 200,
-        "headers": [(b"content-type", b"application/json")],
-    })
-    body = json.dumps({
-        "access_token": "super-secret-token-value",
-        "token_type": "Bearer",
-        "scope": "claudeai",
-    }).encode()
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-type", b"application/json")],
+        }
+    )
+    body = json.dumps(
+        {
+            "access_token": "super-secret-token-value",
+            "token_type": "Bearer",
+            "scope": "claudeai",
+        }
+    ).encode()
     await send({"type": "http.response.body", "body": body, "more_body": False})
 
 
@@ -51,9 +55,11 @@ class TestRequestLogRedaction:
         from garmin_mcp.server import _RequestLogMiddleware
 
         mw = _RequestLogMiddleware(_simple_app)
-        scope = _make_http_scope(headers=[
-            (b"authorization", b"Bearer my-secret-token-12345"),
-        ])
+        scope = _make_http_scope(
+            headers=[
+                (b"authorization", b"Bearer my-secret-token-12345"),
+            ]
+        )
         responses = []
 
         async def receive():
@@ -75,9 +81,11 @@ class TestRequestLogRedaction:
         from garmin_mcp.server import _RequestLogMiddleware
 
         mw = _RequestLogMiddleware(_simple_app)
-        scope = _make_http_scope(headers=[
-            (b"authorization", b"Bearer my-secret-token-12345"),
-        ])
+        scope = _make_http_scope(
+            headers=[
+                (b"authorization", b"Bearer my-secret-token-12345"),
+            ]
+        )
         responses = []
 
         async def receive():

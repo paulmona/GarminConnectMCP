@@ -20,6 +20,7 @@ class TestMcpToolsUnconfigured:
         mock_client.call_with_retry.side_effect = CredentialsNotConfiguredError("not configured")
 
         from garmin_mcp.server import get_recent_activities
+
         result = get_recent_activities()
 
         parsed = json.loads(result)
@@ -32,6 +33,7 @@ class TestMcpToolsUnconfigured:
         mock_client.call_with_retry.side_effect = CredentialsNotConfiguredError("not configured")
 
         from garmin_mcp.server import get_training_status
+
         result = get_training_status()
 
         parsed = json.loads(result)
@@ -44,6 +46,7 @@ class TestMcpToolsUnconfigured:
         mock_client.call_with_retry.side_effect = CredentialsNotConfiguredError("not configured")
 
         from garmin_mcp.server import get_recovery_snapshot
+
         result = get_recovery_snapshot()
 
         parsed = json.loads(result)

@@ -12,11 +12,13 @@ _TEST_SECRET = "JBSWY3DPEHPK3PXP"
 
 async def _simple_app(scope, receive, send):
     """Minimal ASGI app that always returns 200 OK."""
-    await send({
-        "type": "http.response.start",
-        "status": 200,
-        "headers": [(b"content-type", b"text/plain")],
-    })
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-type", b"text/plain")],
+        }
+    )
     await send({"type": "http.response.body", "body": b"OK", "more_body": False})
 
 
@@ -53,9 +55,7 @@ async def _collect_response(middleware, scope, body=b""):
 class TestTOTPGateMiddleware:
     async def test_get_authorize_returns_html_form(self):
         mw = _TOTPGateMiddleware(_simple_app, _TEST_SECRET)
-        scope = _make_scope(
-            query_string=b"response_type=code&client_id=abc&state=xyz"
-        )
+        scope = _make_scope(query_string=b"response_type=code&client_id=abc&state=xyz")
         status, headers, body = await _collect_response(mw, scope)
         assert status == 200
         assert b"text/html" in dict(headers).get(b"content-type", b"")
@@ -77,12 +77,14 @@ class TestTOTPGateMiddleware:
             await _simple_app(scope, receive, send)
 
         mw = _TOTPGateMiddleware(tracking_app, _TEST_SECRET)
-        form_body = urlencode({
-            "response_type": "code",
-            "client_id": "abc",
-            "state": "xyz",
-            "totp_code": valid_code,
-        }).encode()
+        form_body = urlencode(
+            {
+                "response_type": "code",
+                "client_id": "abc",
+                "state": "xyz",
+                "totp_code": valid_code,
+            }
+        ).encode()
         scope = _make_scope(method="POST")
         status, _, _ = await _collect_response(mw, scope, body=form_body)
         assert status == 200
@@ -96,11 +98,13 @@ class TestTOTPGateMiddleware:
 
     async def test_post_invalid_totp_shows_error(self):
         mw = _TOTPGateMiddleware(_simple_app, _TEST_SECRET)
-        form_body = urlencode({
-            "response_type": "code",
-            "client_id": "abc",
-            "totp_code": "000000",
-        }).encode()
+        form_body = urlencode(
+            {
+                "response_type": "code",
+                "client_id": "abc",
+                "totp_code": "000000",
+            }
+        ).encode()
         scope = _make_scope(method="POST")
         status, _, body = await _collect_response(mw, scope, body=form_body)
         assert status == 200
@@ -133,9 +137,7 @@ class TestTOTPGateMiddleware:
 
     async def test_html_escaping_prevents_xss(self):
         mw = _TOTPGateMiddleware(_simple_app, _TEST_SECRET)
-        scope = _make_scope(
-            query_string=b"client_id=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
-        )
+        scope = _make_scope(query_string=b"client_id=%3Cscript%3Ealert(1)%3C%2Fscript%3E")
         _, _, body = await _collect_response(mw, scope)
         assert b"<script>" not in body
         assert b"&lt;script&gt;" in body
@@ -149,10 +151,12 @@ class TestTOTPGateMiddleware:
             await _simple_app(scope, receive, send)
 
         mw = _TOTPGateMiddleware(capture_app, _TEST_SECRET)
-        form_body = urlencode({
-            "client_id": "test",
-            "totp_code": valid_code,
-        }).encode()
+        form_body = urlencode(
+            {
+                "client_id": "test",
+                "totp_code": valid_code,
+            }
+        ).encode()
         scope = _make_scope(method="POST")
         await _collect_response(mw, scope, body=form_body)
         qs = forwarded_scopes[0]["query_string"].decode()
