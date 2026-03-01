@@ -110,7 +110,7 @@ Fully in-memory; all state is lost on container restart (tokens, registered clie
 | `MCP_MODE` | No (default `stdio`) | `sse` for Docker/remote |
 | `MCP_API_KEY` | No | Bearer token; enables OAuth server when set in SSE mode |
 | `MCP_SERVER_URL` | No (default `http://localhost:8000`) | Public base URL for OAuth issuer/resource metadata |
-| `MCP_TOTP_SECRET` | No | Base32 TOTP secret; enables 2FA on `/authorize` when set |
+| `MCP_TOTP_SECRET` | Yes (when `MCP_API_KEY` set) | Base32 TOTP secret; required for OAuth mode to prevent unauthorized token issuance |
 | `MCP_HOST` | No (default `0.0.0.0`) | SSE bind address |
 | `MCP_PORT` | No (default `8000`) | SSE port |
 | `GARMIN_SESSION_DIR` | No (default `config/.session`) | garth token cache directory |

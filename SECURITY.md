@@ -49,6 +49,19 @@ Setting `MCP_MODE=sse` starts the server as a Streamable HTTP endpoint on port 8
 
 **Do not run SSE mode without `MCP_API_KEY`** when the port is reachable from the network. Without it, any process that can reach port 8000 gets full read access to the user's Garmin health data.
 
+### TOTP gate (mandatory for OAuth mode)
+
+When `MCP_API_KEY` is set, `MCP_TOTP_SECRET` **must** also be set — the server refuses to start without it. This prevents an authentication bypass where anyone could complete the OAuth flow (register → authorize → token → /mcp) without any credentials.
+
+The `_TOTPGateMiddleware` intercepts `GET /authorize` and renders an HTML form requiring a 6-digit TOTP code from an authenticator app (Google Authenticator, Authy, etc.). Only after entering a valid code does the OAuth authorization proceed.
+
+**Setup:**
+1. Generate a TOTP secret: `python3 -c "import pyotp; print(pyotp.random_base32())"`
+2. Set `MCP_TOTP_SECRET` to the generated value in your container environment
+3. Add the secret to your authenticator app (manual entry, base32 key)
+
+Without `/authorize` gated by TOTP, the OAuth provider auto-approves all requests — meaning anyone who discovers the server URL gets full access to all Garmin health data via the OAuth flow.
+
 ---
 
 ## 4. Input Validation

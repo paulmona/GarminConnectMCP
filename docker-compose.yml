@@ -9,6 +9,7 @@ services:
       GARMIN_PASSWORD: ${GARMIN_PASSWORD}
       MCP_MODE: sse
       MCP_API_KEY: ${MCP_API_KEY:-}
+      MCP_TOTP_SECRET: ${MCP_TOTP_SECRET:-}
     volumes:
       - garmin-session:/app/config/.session
     restart: unless-stopped

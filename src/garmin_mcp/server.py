@@ -954,6 +954,15 @@ def main():
             from mcp.server.fastmcp.server import AuthSettings
 
             server_url = os.environ.get("MCP_SERVER_URL", "http://localhost:8000").rstrip("/")
+            totp_secret = os.environ.get("MCP_TOTP_SECRET", "").strip()
+            if not totp_secret:
+                _logger.error(
+                    "MCP_TOTP_SECRET must be set when MCP_API_KEY is set. "
+                    "The TOTP gate prevents unauthorized OAuth token issuance. "
+                    "Generate a secret with: "
+                    'python3 -c "import pyotp; print(pyotp.random_base32())"'
+                )
+                raise SystemExit(1)
             provider = _SimpleOAuthProvider(api_key)
             mcp._auth_server_provider = provider
             mcp._token_verifier = ProviderTokenVerifier(provider)
@@ -968,11 +977,10 @@ def main():
             )
 
             async def _run() -> None:
-                totp_secret = os.environ.get("MCP_TOTP_SECRET", "").strip()
-                inner_app = mcp.streamable_http_app()
-                if totp_secret:
-                    _logger.info("TOTP gate enabled on /authorize")
-                    inner_app = _TOTPGateMiddleware(inner_app, totp_secret)
+                _logger.info("TOTP gate enabled on /authorize")
+                inner_app = _TOTPGateMiddleware(
+                    mcp.streamable_http_app(), totp_secret
+                )
                 app = _RequestLogMiddleware(
                     _CORSMiddleware(
                         _OAuthDiscoveryFixMiddleware(
