@@ -135,7 +135,7 @@ class TestMcpProtocol:
             },
         )
         tools = resp.json()["result"]["tools"]
-        assert len(tools) == 42
+        assert len(tools) == 45
 
     def test_list_tools_names(self, mcp_client):
         resp = mcp_client.post(
@@ -408,6 +408,29 @@ class TestHealthTools:
         mock_api.get_weekly_intensity_minutes.return_value = {"weeks": [{"total": 150}]}
         result = _call_tool(mcp_client, "get_weekly_intensity_minutes", {"end": "2025-01-15"})
         assert "weeks" in result
+
+    def test_get_steps_data(self, mcp_client, mock_api):
+        mock_api.get_steps_data.return_value = {
+            "calendarDate": "2025-01-15",
+            "totalSteps": 8432,
+        }
+        result = _call_tool(mcp_client, "get_steps_data", {"cdate": "2025-01-15"})
+        assert result["totalSteps"] == 8432
+
+    def test_get_daily_steps(self, mcp_client, mock_api):
+        mock_api.get_daily_steps.return_value = [
+            {"calendarDate": "2025-01-14", "totalSteps": 9500},
+            {"calendarDate": "2025-01-15", "totalSteps": 8432},
+        ]
+        result = _call_tool(mcp_client, "get_daily_steps", {"start": "2025-01-14", "end": "2025-01-15"})
+        assert len(result) == 2
+
+    def test_get_weekly_steps(self, mcp_client, mock_api):
+        mock_api.get_weekly_steps.return_value = {
+            "weeklyStepAverages": [{"calendarDate": "2025-01-15", "averageSteps": 9200}],
+        }
+        result = _call_tool(mcp_client, "get_weekly_steps", {"end": "2025-01-15"})
+        assert "weeklyStepAverages" in result
 
 
 # ---------------------------------------------------------------------------

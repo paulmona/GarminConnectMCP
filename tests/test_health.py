@@ -8,6 +8,7 @@ from garmin_mcp.tools.health import (
     get_body_battery,
     get_body_battery_events,
     get_daily_stats,
+    get_daily_steps,
     get_heart_rates,
     get_hrv_trend,
     get_intensity_minutes,
@@ -15,8 +16,10 @@ from garmin_mcp.tools.health import (
     get_resting_hr_trend,
     get_sleep_history,
     get_spo2_data,
+    get_steps_data,
     get_stress_data,
     get_weekly_intensity_minutes,
+    get_weekly_steps,
     get_weekly_stress,
 )
 
@@ -587,3 +590,93 @@ class TestGetSpo2Data:
         api.get_spo2_data.side_effect = Exception("fail")
 
         assert get_spo2_data(api, cdate="2025-01-15") == {}
+
+
+# --- get_steps_data ---
+
+
+class TestGetStepsData:
+    def test_returns_steps_data(self):
+        api = MagicMock()
+        api.get_steps_data.return_value = {
+            "calendarDate": "2025-01-15",
+            "totalSteps": 8432,
+            "totalDistance": 6200,
+            "stepGoal": 10000,
+        }
+
+        result = get_steps_data(api, cdate="2025-01-15")
+
+        assert result["totalSteps"] == 8432
+        api.get_steps_data.assert_called_once_with("2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_steps_data.return_value = None
+
+        assert get_steps_data(api, cdate="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_steps_data.side_effect = Exception("fail")
+
+        assert get_steps_data(api, cdate="2025-01-15") == {}
+
+
+# --- get_daily_steps ---
+
+
+class TestGetDailySteps:
+    def test_returns_daily_steps(self):
+        api = MagicMock()
+        api.get_daily_steps.return_value = [
+            {"calendarDate": "2025-01-14", "totalSteps": 9500},
+            {"calendarDate": "2025-01-15", "totalSteps": 8432},
+        ]
+
+        result = get_daily_steps(api, start="2025-01-14", end="2025-01-15")
+
+        assert len(result) == 2
+        api.get_daily_steps.assert_called_once_with("2025-01-14", "2025-01-15")
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_daily_steps.return_value = None
+
+        assert get_daily_steps(api, start="2025-01-14", end="2025-01-15") == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_daily_steps.side_effect = Exception("fail")
+
+        assert get_daily_steps(api, start="2025-01-14", end="2025-01-15") == {}
+
+
+# --- get_weekly_steps ---
+
+
+class TestGetWeeklySteps:
+    def test_returns_weekly_steps(self):
+        api = MagicMock()
+        api.get_weekly_steps.return_value = {
+            "startDate": "2025-01-01",
+            "endDate": "2025-01-15",
+            "weeklyStepAverages": [{"calendarDate": "2025-01-15", "averageSteps": 9200}],
+        }
+
+        result = get_weekly_steps(api, end="2025-01-15", weeks=2)
+
+        assert "weeklyStepAverages" in result
+        api.get_weekly_steps.assert_called_once_with("2025-01-15", 2)
+
+    def test_returns_empty_on_none(self):
+        api = MagicMock()
+        api.get_weekly_steps.return_value = None
+
+        assert get_weekly_steps(api, end="2025-01-15", weeks=2) == {}
+
+    def test_returns_empty_on_exception(self):
+        api = MagicMock()
+        api.get_weekly_steps.side_effect = Exception("fail")
+
+        assert get_weekly_steps(api, end="2025-01-15", weeks=2) == {}

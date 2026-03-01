@@ -8,7 +8,7 @@ class TestMcpServerRegistration:
         from garmin_mcp.server import mcp
 
         tools = mcp._tool_manager.list_tools()
-        assert len(tools) == 42
+        assert len(tools) == 45
 
     def test_mcp_server_tool_names(self):
         from garmin_mcp.server import mcp
@@ -57,6 +57,9 @@ class TestMcpServerRegistration:
             "get_respiration_data",
             "get_spo2_data",
             "upload_cycling_workout",
+            "get_steps_data",
+            "get_daily_steps",
+            "get_weekly_steps",
         }
         assert names == expected
 
