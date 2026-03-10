@@ -159,9 +159,22 @@ src/fitness_mcp/tools/
   1. Generate authorize URL → user visits in browser
   2. Handle callback at `/oura/callback` → exchange code for tokens
   3. Store access_token + refresh_token on disk (JSON file, owner-only permissions)
-  4. Auto-refresh when access_token expires (30-day expiry, refresh token is long-lived)
+  4. Auto-refresh when access_token expires (24-hour expiry via auth code grant)
+  5. Refresh tokens are **single-use** — each refresh returns a new refresh_token (must persist the new one)
 - `call_with_retry()` pattern: try request → on 401 → refresh token → retry once
+- Use `httpx` directly (already a dependency) rather than third-party Oura SDKs — the REST API is simple
+- **Note**: Authorization goes to `cloud.ouraring.com`, API calls go to `api.ouraring.com`
 - Rate limit awareness: 5000 requests per 5 minutes (generous, but add basic tracking)
+
+**OAuth2 Scopes to request**: `email personal daily heartrate workout session spo2Daily`
+
+**Key URLs:**
+| Purpose | URL |
+|---------|-----|
+| Authorize | `https://cloud.ouraring.com/oauth/authorize` |
+| Token | `https://api.ouraring.com/oauth/token` |
+| Revoke | `https://api.ouraring.com/oauth/revoke` |
+| API Base | `https://api.ouraring.com` |
 
 ### 3.2 Oura ASGI middleware for OAuth callback
 Add a lightweight middleware/route to handle the Oura OAuth callback:
