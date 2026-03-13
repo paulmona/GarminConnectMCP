@@ -1,9 +1,5 @@
 """Tests for OAuth state persistence across provider restarts."""
 
-import json
-import os
-import tempfile
-
 import pytest
 
 

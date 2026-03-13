@@ -865,9 +865,7 @@ class _SimpleOAuthProvider:
             for cid, raw in data.get("clients", {}).items():
                 self._clients[cid] = OAuthClientInformationFull.model_validate(raw)
             # access tokens — simple {token: [scopes]}
-            self._access_tokens = {
-                tok: scopes for tok, scopes in data.get("access_tokens", {}).items()
-            }
+            self._access_tokens = {tok: scopes for tok, scopes in data.get("access_tokens", {}).items()}
             # refresh tokens — {token: {token, client_id, scopes}}
             for tok, raw in data.get("refresh_tokens", {}).items():
                 self._refresh_tokens[tok] = RefreshToken.model_validate(raw)
@@ -890,13 +888,9 @@ class _SimpleOAuthProvider:
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                "clients": {
-                    cid: info.model_dump(mode="json") for cid, info in self._clients.items()
-                },
+                "clients": {cid: info.model_dump(mode="json") for cid, info in self._clients.items()},
                 "access_tokens": self._access_tokens,
-                "refresh_tokens": {
-                    tok: rt.model_dump(mode="json") for tok, rt in self._refresh_tokens.items()
-                },
+                "refresh_tokens": {tok: rt.model_dump(mode="json") for tok, rt in self._refresh_tokens.items()},
             }
             tmp = p.with_suffix(".tmp")
             tmp.write_text(json.dumps(data))
