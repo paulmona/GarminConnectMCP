@@ -1350,7 +1350,7 @@ _TOTP_FORM_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Garmin MCP — Verify Access</title>
+  <title>{title} — Verify Access</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif;
            display: flex; justify-content: center; align-items: center;
@@ -1373,10 +1373,10 @@ _TOTP_FORM_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
   <div class="card">
-    <h1>Garmin Connect MCP</h1>
+    <h1>{title}</h1>
     <p>Enter the 6-digit code from your authenticator app.</p>
     {error_html}
-    <form method="POST" action="/authorize">
+    <form method="POST" action="{action}">
       {hidden_fields}
       <input type="text" name="totp_code" maxlength="6" pattern="[0-9]{{6}}"
              inputmode="numeric" autocomplete="one-time-code" autofocus
@@ -1389,29 +1389,43 @@ _TOTP_FORM_TEMPLATE = """<!DOCTYPE html>
 </html>"""
 
 
+_TOTP_GATE_TITLES: dict[str, str] = {
+    "/authorize": "Garmin Connect MCP",
+    "/oura/authorize": "Oura Ring MCP",
+}
+
+
 class _TOTPGateMiddleware:
-    """Intercept GET/POST /authorize to require TOTP verification.
+    """Intercept GET/POST on gated paths to require TOTP verification.
 
     When MCP_TOTP_SECRET is configured, this middleware renders an HTML form
-    on GET /authorize and validates the submitted TOTP code on POST.  If valid,
-    the request is forwarded to the inner app as a reconstructed GET with the
-    original OAuth query parameters.
+    on GET requests to any gated path and validates the submitted TOTP code
+    on POST.  If valid, the request is forwarded to the inner app as a
+    reconstructed GET with the original query parameters.
     """
 
-    def __init__(self, app, totp_secret: str) -> None:
+    def __init__(
+        self,
+        app,
+        totp_secret: str,
+        gated_paths: tuple[str, ...] = ("/authorize",),
+    ) -> None:
         self._app = app
         self._totp_secret = totp_secret
+        self._gated_paths = set(gated_paths)
 
     async def __call__(self, scope, receive, send) -> None:
-        if scope["type"] != "http" or scope.get("path") != "/authorize":
+        if scope["type"] != "http" or scope.get("path") not in self._gated_paths:
             return await self._app(scope, receive, send)
+
+        path = scope["path"]
 
         method = scope.get("method", "")
 
         if method == "GET":
             qs = scope.get("query_string", b"").decode()
             params = parse_qs(qs, keep_blank_values=True)
-            body = self._render_form(params, error=None)
+            body = self._render_form(params, path, error=None)
             await self._send_html(send, body)
             return
 
@@ -1429,7 +1443,7 @@ class _TOTPGateMiddleware:
                 return await self._app(new_scope, receive, send)
 
             params = {k: v for k, v in form_data.items() if k != "totp_code"}
-            body = self._render_form(params, error="Invalid code. Please try again.")
+            body = self._render_form(params, path, error="Invalid code. Please try again.")
             await self._send_html(send, body)
             return
 
@@ -1437,7 +1451,9 @@ class _TOTPGateMiddleware:
 
     # ------------------------------------------------------------------
 
-    def _render_form(self, params: dict[str, list[str]], error: str | None) -> bytes:
+    def _render_form(
+        self, params: dict[str, list[str]], path: str, error: str | None
+    ) -> bytes:
         hidden_fields: list[str] = []
         for key, values in params.items():
             for val in values:
@@ -1445,7 +1461,10 @@ class _TOTPGateMiddleware:
                 safe_val = _html_mod.escape(val)
                 hidden_fields.append(f'<input type="hidden" name="{safe_key}" value="{safe_val}">')
         error_html = f'<p class="error">{_html_mod.escape(error)}</p>' if error else ""
+        title = _TOTP_GATE_TITLES.get(path, "Fitness MCP")
         return _TOTP_FORM_TEMPLATE.format(
+            title=title,
+            action=_html_mod.escape(path),
             hidden_fields="\n      ".join(hidden_fields),
             error_html=error_html,
         ).encode()
@@ -1533,8 +1552,11 @@ def main():
             )
 
             async def _run() -> None:
-                _logger.info("TOTP gate enabled on /authorize")
-                inner_app = _TOTPGateMiddleware(mcp.streamable_http_app(), totp_secret)
+                gated_paths = ("/authorize", "/oura/authorize")
+                _logger.info("TOTP gate enabled on %s", ", ".join(gated_paths))
+                inner_app = _TOTPGateMiddleware(
+                    mcp.streamable_http_app(), totp_secret, gated_paths=gated_paths
+                )
                 app = _RequestLogMiddleware(
                     _CORSMiddleware(
                         _OAuthDiscoveryFixMiddleware(

@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import pyotp
 import pytest
 
-from garmin_mcp.server import _TOTPGateMiddleware, main
+from garmin_mcp.server import _TOTP_GATE_TITLES, _TOTPGateMiddleware, main
 
 _TEST_SECRET = "JBSWY3DPEHPK3PXP"
 
@@ -162,6 +162,91 @@ class TestTOTPGateMiddleware:
         qs = forwarded_scopes[0]["query_string"].decode()
         assert "client_id=test" in qs
         assert "totp_code" not in qs
+
+
+class TestTOTPGateMultiPath:
+    """Tests for TOTP gating on multiple paths (e.g., /oura/authorize)."""
+
+    async def test_oura_authorize_shows_totp_form(self):
+        mw = _TOTPGateMiddleware(
+            _simple_app, _TEST_SECRET, gated_paths=("/authorize", "/oura/authorize")
+        )
+        scope = _make_scope(path="/oura/authorize", query_string=b"foo=bar")
+        status, headers, body = await _collect_response(mw, scope)
+        assert status == 200
+        assert b"text/html" in dict(headers).get(b"content-type", b"")
+        assert b'name="totp_code"' in body
+        assert b'action="/oura/authorize"' in body
+        assert b'value="bar"' in body
+
+    async def test_oura_authorize_shows_oura_title(self):
+        mw = _TOTPGateMiddleware(
+            _simple_app, _TEST_SECRET, gated_paths=("/authorize", "/oura/authorize")
+        )
+        scope = _make_scope(path="/oura/authorize")
+        _, _, body = await _collect_response(mw, scope)
+        assert _TOTP_GATE_TITLES["/oura/authorize"].encode() in body
+
+    async def test_authorize_shows_garmin_title(self):
+        mw = _TOTPGateMiddleware(
+            _simple_app, _TEST_SECRET, gated_paths=("/authorize", "/oura/authorize")
+        )
+        scope = _make_scope(path="/authorize")
+        _, _, body = await _collect_response(mw, scope)
+        assert _TOTP_GATE_TITLES["/authorize"].encode() in body
+
+    async def test_oura_post_valid_totp_passes_through(self):
+        valid_code = pyotp.TOTP(_TEST_SECRET).now()
+        reached_inner: list[dict] = []
+
+        async def tracking_app(scope, receive, send):
+            reached_inner.append(scope)
+            await _simple_app(scope, receive, send)
+
+        mw = _TOTPGateMiddleware(
+            tracking_app, _TEST_SECRET, gated_paths=("/authorize", "/oura/authorize")
+        )
+        form_body = urlencode({"redirect_uri": "http://x", "totp_code": valid_code}).encode()
+        scope = _make_scope(path="/oura/authorize", method="POST")
+        status, _, _ = await _collect_response(mw, scope, body=form_body)
+        assert status == 200
+        assert len(reached_inner) == 1
+        assert reached_inner[0]["method"] == "GET"
+        assert b"redirect_uri" in reached_inner[0]["query_string"]
+        assert b"totp_code" not in reached_inner[0]["query_string"]
+
+    async def test_oura_post_invalid_totp_shows_error(self):
+        mw = _TOTPGateMiddleware(
+            _simple_app, _TEST_SECRET, gated_paths=("/authorize", "/oura/authorize")
+        )
+        form_body = urlencode({"redirect_uri": "http://x", "totp_code": "000000"}).encode()
+        scope = _make_scope(path="/oura/authorize", method="POST")
+        status, _, body = await _collect_response(mw, scope, body=form_body)
+        assert status == 200
+        assert b"Invalid code" in body
+        assert b'action="/oura/authorize"' in body
+
+    async def test_ungated_path_passes_through(self):
+        reached: list[bool] = []
+
+        async def marker_app(scope, receive, send):
+            reached.append(True)
+            await _simple_app(scope, receive, send)
+
+        mw = _TOTPGateMiddleware(
+            marker_app, _TEST_SECRET, gated_paths=("/authorize", "/oura/authorize")
+        )
+        scope = _make_scope(path="/oura/callback", method="GET")
+        await _collect_response(mw, scope)
+        assert reached == [True]
+
+    async def test_unknown_path_uses_fallback_title(self):
+        mw = _TOTPGateMiddleware(
+            _simple_app, _TEST_SECRET, gated_paths=("/custom/auth",)
+        )
+        scope = _make_scope(path="/custom/auth")
+        _, _, body = await _collect_response(mw, scope)
+        assert b"Fitness MCP" in body
 
 
 class TestTOTPStartupValidation:
