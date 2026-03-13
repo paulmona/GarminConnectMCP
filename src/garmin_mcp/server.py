@@ -827,24 +827,91 @@ def get_body_composition(days: int = 30) -> str:
 
 
 class _SimpleOAuthProvider:
-    """Minimal in-memory OAuth 2.0 provider for personal use.
+    """Minimal OAuth 2.0 provider for personal use.
 
-    Auto-approves every authorization request and issues MCP_API_KEY as the
-    access token. All state is in memory and resets on container restart.
+    Auto-approves every authorization request and issues random tokens.
+    Persistent state (clients, access tokens, refresh tokens) is saved to
+    *persist_path* so tokens survive container restarts.  Auth codes are
+    short-lived and kept only in memory.
     """
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, persist_path: str | None = None) -> None:
         self._api_key = api_key
+        self._persist_path = persist_path
         self._clients: dict = {}
         self._auth_codes: dict = {}
         self._access_tokens: dict = {}  # token → scopes
         self._refresh_tokens: dict = {}
+        self._load()
+
+    # -- persistence helpers ------------------------------------------------
+
+    def _load(self) -> None:
+        """Restore persistent state from disk (best-effort)."""
+        if not self._persist_path:
+            return
+        from pathlib import Path
+
+        p = Path(self._persist_path)
+        if not p.exists():
+            return
+        try:
+            from mcp.server.auth.provider import RefreshToken
+
+            data = json.loads(p.read_text())
+            # clients — stored as Pydantic model dicts
+            from mcp.server.auth.provider import OAuthClientInformationFull
+
+            for cid, raw in data.get("clients", {}).items():
+                self._clients[cid] = OAuthClientInformationFull.model_validate(raw)
+            # access tokens — simple {token: [scopes]}
+            self._access_tokens = {
+                tok: scopes for tok, scopes in data.get("access_tokens", {}).items()
+            }
+            # refresh tokens — {token: {token, client_id, scopes}}
+            for tok, raw in data.get("refresh_tokens", {}).items():
+                self._refresh_tokens[tok] = RefreshToken.model_validate(raw)
+            _logger.info(
+                "OAuth state restored: %d clients, %d access tokens, %d refresh tokens",
+                len(self._clients),
+                len(self._access_tokens),
+                len(self._refresh_tokens),
+            )
+        except Exception:
+            _logger.warning("Failed to load OAuth state from %s", p, exc_info=True)
+
+    def _save(self) -> None:
+        """Persist durable state to disk (best-effort)."""
+        if not self._persist_path:
+            return
+        from pathlib import Path
+
+        p = Path(self._persist_path)
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "clients": {
+                    cid: info.model_dump(mode="json") for cid, info in self._clients.items()
+                },
+                "access_tokens": self._access_tokens,
+                "refresh_tokens": {
+                    tok: rt.model_dump(mode="json") for tok, rt in self._refresh_tokens.items()
+                },
+            }
+            tmp = p.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data))
+            tmp.replace(p)
+        except Exception:
+            _logger.warning("Failed to save OAuth state to %s", p, exc_info=True)
+
+    # -- OAuthProvider interface -------------------------------------------
 
     async def get_client(self, client_id: str):
         return self._clients.get(client_id)
 
     async def register_client(self, client_info) -> None:
         self._clients[client_info.client_id] = client_info
+        self._save()
 
     async def authorize(self, client, params) -> str:
         from mcp.server.auth.provider import AuthorizationCode, construct_redirect_uri
@@ -875,6 +942,7 @@ class _SimpleOAuthProvider:
         self._refresh_tokens[refresh] = RefreshToken(
             token=refresh, client_id=client.client_id, scopes=authorization_code.scopes
         )
+        self._save()
         return OAuthToken(
             access_token=access,
             token_type="Bearer",  # nosec B106
@@ -912,6 +980,7 @@ class _SimpleOAuthProvider:
         self._refresh_tokens[new_refresh] = RefreshToken(
             token=new_refresh, client_id=client.client_id, scopes=refresh_token.scopes
         )
+        self._save()
         return OAuthToken(
             access_token=access,
             token_type="Bearer",  # nosec B106
@@ -927,6 +996,7 @@ class _SimpleOAuthProvider:
             self._refresh_tokens.pop(token.token, None)
         else:
             self._access_tokens.pop(getattr(token, "token", str(token)), None)
+        self._save()
 
     async def verify_token(self, token: str):
         return await self.load_access_token(token)
@@ -1519,7 +1589,9 @@ def main():
                     'python3 -c "import pyotp; print(pyotp.random_base32())"'
                 )
                 raise SystemExit(1)
-            provider = _SimpleOAuthProvider(api_key)
+            session_dir = os.environ.get("GARMIN_SESSION_DIR", "config/.session")
+            oauth_state_path = os.path.join(session_dir, "oauth_state.json")
+            provider = _SimpleOAuthProvider(api_key, persist_path=oauth_state_path)
             mcp._auth_server_provider = provider
             mcp._token_verifier = ProviderTokenVerifier(provider)
             mcp.settings.auth = AuthSettings(
