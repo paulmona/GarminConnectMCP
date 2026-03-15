@@ -129,6 +129,7 @@ Replace `localhost` with your server's IP or hostname if running remotely.
 | `MCP_DEBUG` | No | — | Set to `true` to log full OAuth token bodies and Bearer token prefixes. Off by default to prevent secret leakage in logs |
 | `MCP_HOST` | No | `0.0.0.0` | SSE bind address |
 | `MCP_PORT` | No | `8000` | SSE port |
+| `MCP_ENDPOINT_PATH` | No | `/mcp` | Custom MCP endpoint path. Set to a random string (e.g. `/x7k9m2p4q8r1w3y5`) to hide the endpoint from drive-by scanners |
 
 ---
 

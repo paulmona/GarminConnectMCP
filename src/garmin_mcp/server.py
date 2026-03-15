@@ -1555,6 +1555,14 @@ def main():
 
         mcp.settings.host = os.environ.get("MCP_HOST", "0.0.0.0")  # nosec B104
         mcp.settings.port = int(os.environ.get("MCP_PORT", "8000"))
+        endpoint_path = os.environ.get("MCP_ENDPOINT_PATH", "").strip()
+        if endpoint_path:
+            if not endpoint_path.startswith("/"):
+                endpoint_path = "/" + endpoint_path
+            mcp.settings.streamable_http_path = endpoint_path
+            _logger.info("Custom MCP endpoint path: %s", endpoint_path)
+        else:
+            endpoint_path = mcp.settings.streamable_http_path  # default "/mcp"
         api_key = os.environ.get("MCP_API_KEY", "").strip()
         if api_key:
             import anyio
@@ -1590,7 +1598,7 @@ def main():
             mcp._token_verifier = ProviderTokenVerifier(provider)
             mcp.settings.auth = AuthSettings(
                 issuer_url=server_url,
-                resource_server_url=server_url + "/mcp",
+                resource_server_url=server_url + endpoint_path,
                 client_registration_options=ClientRegistrationOptions(
                     enabled=True,
                     valid_scopes=["claudeai"],
@@ -1606,7 +1614,7 @@ def main():
                         _OAuthDiscoveryFixMiddleware(
                             _TokenEndpointMiddleware(
                                 _AcceptHeaderMiddleware(_Fix401Middleware(inner_app)),
-                                resource_url=server_url + "/mcp",
+                                resource_url=server_url + endpoint_path,
                             )
                         )
                     )

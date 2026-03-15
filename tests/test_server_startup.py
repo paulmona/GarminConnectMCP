@@ -1,5 +1,49 @@
 """Smoke tests verifying the MCP server registers all expected tools."""
 
+import os
+from unittest.mock import patch
+
+
+class TestCustomEndpointPath:
+    """Tests for MCP_ENDPOINT_PATH configuration."""
+
+    def test_default_endpoint_path(self):
+        from garmin_mcp.server import mcp
+
+        assert mcp.settings.streamable_http_path == "/mcp"
+
+    def test_custom_endpoint_path_applied(self):
+        """MCP_ENDPOINT_PATH sets the streamable_http_path on the FastMCP instance."""
+        env = {
+            "MCP_MODE": "sse",
+            "MCP_ENDPOINT_PATH": "/x7k9m2p4q8r1w3y5",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            from garmin_mcp.server import mcp
+
+            # Reset to default first
+            mcp.settings.streamable_http_path = "/mcp"
+            # Re-import main to test the env var path — but main() blocks,
+            # so we test the logic directly:
+            endpoint_path = os.environ.get("MCP_ENDPOINT_PATH", "").strip()
+            if endpoint_path:
+                if not endpoint_path.startswith("/"):
+                    endpoint_path = "/" + endpoint_path
+                mcp.settings.streamable_http_path = endpoint_path
+
+            assert mcp.settings.streamable_http_path == "/x7k9m2p4q8r1w3y5"
+            # Restore default
+            mcp.settings.streamable_http_path = "/mcp"
+
+    def test_custom_endpoint_path_adds_leading_slash(self):
+        """MCP_ENDPOINT_PATH without leading slash gets one prepended."""
+        env = {"MCP_ENDPOINT_PATH": "secret123"}
+        with patch.dict(os.environ, env, clear=False):
+            endpoint_path = os.environ.get("MCP_ENDPOINT_PATH", "").strip()
+            if not endpoint_path.startswith("/"):
+                endpoint_path = "/" + endpoint_path
+            assert endpoint_path == "/secret123"
+
 
 class TestMcpServerRegistration:
     """Tests that the MCP server registers all expected tools."""

@@ -123,6 +123,7 @@ Fully in-memory; all state is lost on container restart (tokens, registered clie
 | `MCP_DEBUG` | No | Set to `true` to log full OAuth token request/response bodies and Bearer token prefixes. Off by default to prevent secret leakage |
 | `MCP_HOST` | No (default `0.0.0.0`) | SSE bind address |
 | `MCP_PORT` | No (default `8000`) | SSE port |
+| `MCP_ENDPOINT_PATH` | No (default `/mcp`) | Custom MCP endpoint path; use a random string (e.g. `/x7k9m2p4q8r1w3y5`) as an extra security layer |
 | `GARMIN_SESSION_DIR` | No (default `config/.session`) | garth token cache directory |
 
 ## CI/CD (GitHub Actions)
